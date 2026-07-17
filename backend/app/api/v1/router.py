@@ -9,6 +9,7 @@ from app.api.v1 import (
     devices,
     elements,
     quality,
+    reports,
     sync,
     users,
     works,
@@ -25,3 +26,4 @@ api_router.include_router(quality.router)
 api_router.include_router(elements.router)
 api_router.include_router(audit.router)
 api_router.include_router(dashboard.router)
+api_router.include_router(reports.router)

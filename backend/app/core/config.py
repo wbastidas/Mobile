@@ -44,6 +44,7 @@ class Settings(BaseSettings):
 
     # --- Sincronización ---
     UPLOAD_CHUNK_MAX_BYTES: int = 5 * 1024 * 1024  # 5 MB por chunk
+    PHOTO_STORAGE_DIR: str = "./storage"  # raíz de almacenamiento de fotos
 
 
 @lru_cache

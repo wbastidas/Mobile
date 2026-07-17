@@ -64,6 +64,31 @@ export const auditApi = {
     api.get<AuditRow[]>("/audit", { params }).then((r) => r.data),
 };
 
+export interface ReportInfo {
+  key: string;
+  name: string;
+}
+export interface ReportData {
+  key: string;
+  name: string;
+  rows: Record<string, string | number>[];
+  count: number;
+}
+
+export const reportsApi = {
+  catalog: () => api.get<ReportInfo[]>("/reports").then((r) => r.data),
+  data: (key: string, params?: Record<string, string>) =>
+    api.get<ReportData>(`/reports/${key}`, { params }).then((r) => r.data),
+  exportUrl: (key: string, fmt: string) => `/api/v1/reports/${key}/export?fmt=${fmt}`,
+  download: async (key: string, fmt: string) => {
+    const res = await api.get(`/reports/${key}/export`, {
+      params: { fmt },
+      responseType: "blob",
+    });
+    return res.data as Blob;
+  },
+};
+
 export const qualityApi = {
   list: () => api.get<QualityParam[]>("/quality/params").then((r) => r.data),
   upload: (payload: { description?: string; rules_json: unknown; activate?: boolean }) =>

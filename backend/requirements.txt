@@ -9,6 +9,10 @@ passlib>=1.7.4
 python-multipart>=0.0.9
 email-validator>=2.1
 
+# Reportería / exportación (RF-WEB-11)
+openpyxl>=3.1
+reportlab>=4.0
+
 # Producción (PostgreSQL/PostGIS) — descomentar según despliegue:
 # psycopg[binary]>=3.1
 # alembic>=1.13

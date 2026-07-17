@@ -12,7 +12,7 @@ Flujo:
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -32,6 +32,7 @@ from app.models.sync import Photo, RemoteDeleteOrder, SyncPackage
 from app.models.user import User
 from app.models.work import Work
 from app.modules.gis.adapter import ExtractedElement, get_gis_adapter
+from app.services import photo_storage
 from app.schemas.sync import (
     PullResponse,
     SyncUploadRequest,
@@ -159,6 +160,56 @@ def upload(payload: SyncUploadRequest, db: Session = Depends(get_db), user: User
     return SyncUploadResponse(package_id=pkg.id, accepted=True, duplicate=False,
                               missing_photos=missing,
                               detail="Paquete recibido; suba las fotos pendientes por chunks.")
+
+
+@router.post("/photo/{sha256}/chunk")
+async def upload_photo_chunk(
+    sha256: str,
+    index: int,
+    total: int,
+    chunk: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(_field_user),
+):
+    """Sube un chunk de una foto (subida reanudable por lotes, RF-SYNC.3).
+
+    Al recibir el último chunk ensambla el archivo y verifica su integridad por
+    SHA-256 (RF-SYNC.4). Solo si el hash coincide la foto se marca como recibida.
+    """
+    photos = (
+        db.query(Photo)
+        .filter(Photo.sha256 == sha256, Photo.user_id == user.id)
+        .all()
+    )
+    if not photos:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Foto no registrada para este funcionario.")
+    if all(p.fully_received for p in photos):
+        return {"received": total, "total": total, "complete": True, "verified": True,
+                "detail": "Foto ya recibida (idempotente)."}
+
+    data = await chunk.read()
+    result = photo_storage.save_chunk(sha256, index, total, data)
+
+    for p in photos:
+        p.received_chunks = result.received
+
+    if not result.complete:
+        db.commit()
+        return {"received": result.received, "total": total, "complete": False, "verified": False}
+
+    work_id = photos[0].work_id or "sin_trabajo"
+    assembled = photo_storage.assemble_and_verify(sha256, total, work_id)
+    if assembled.verified:
+        final_path = photo_storage._final_path(work_id, sha256)
+        for p in photos:
+            p.fully_received = True
+            p.received_chunks = total
+            p.storage_path = final_path
+    db.commit()
+    return {"received": assembled.received, "total": total,
+            "complete": assembled.complete, "verified": assembled.verified,
+            "detail": "Foto recibida y verificada." if assembled.verified
+            else "Integridad fallida; reintente la foto."}
 
 
 @router.post("/verify/{package_id}", response_model=SyncVerifyResponse)

@@ -1,6 +1,8 @@
 """Pruebas de asignación, borrado remoto y sincronización (RF-WEB-04/05/09, RF-SYNC)."""
+import hashlib
 import json
 
+from app.core.config import settings
 from tests.conftest import login
 
 
@@ -126,6 +128,83 @@ def test_full_sync_flow(client, seeded):
     r = client.get("/api/v1/elements/UN-NORTE-POSTE-0001/log", headers=admin)
     assert r.status_code == 200
     assert any(e["event_type"] == "SYNC" for e in r.json())
+
+
+def test_photo_chunk_upload_completes_sync(client, seeded, tmp_path):
+    """RF-SYNC.3/4: subida por chunks + verificación de integridad por hash."""
+    settings.PHOTO_STORAGE_DIR = str(tmp_path)  # aísla el almacenamiento en la prueba
+
+    admin = login(client, "admin")
+    device = _device_id(client, admin)
+    work = _work_by_code(client, admin, "REV-2026-001")
+    client.post("/api/v1/works/assign", headers=admin,
+                json={"device_id": device, "work_ids": [work["id"]]})
+    field = login(client, "campo.norte")
+
+    content = b"contenido-de-foto-binaria-de-prueba-1234567890"
+    half = len(content) // 2
+    chunks = [content[:half], content[half:]]
+    sha = hashlib.sha256(content).hexdigest()
+
+    payload = {
+        "idempotency_key": "pkg-chunks",
+        "work_id": work["id"],
+        "device_uid": "ANDROID-DEMO-001",
+        "payload_json": json.dumps({"elements": []}),
+        "validation_result": "APPROVED",
+        "photos": [{"element_guid": "UN-NORTE-POSTE-0001", "gps_lat": -0.2, "gps_lon": -78.5,
+                    "captured_at": "2026-07-17T10:00:00Z", "sha256": sha,
+                    "size_bytes": len(content), "total_chunks": 2}],
+    }
+    r = client.post("/api/v1/sync/upload", headers=field, json=payload)
+    pkg_id = r.json()["package_id"]
+    assert sha in r.json()["missing_photos"]
+
+    # Subir los dos chunks.
+    for i, ch in enumerate(chunks):
+        r = client.post(f"/api/v1/sync/photo/{sha}/chunk", headers=field,
+                        params={"index": i, "total": 2},
+                        files={"chunk": (f"part{i}", ch, "application/octet-stream")})
+        assert r.status_code == 200, r.text
+    assert r.json()["verified"] is True
+
+    # Ahora la verificación del paquete debe completar y consolidar.
+    r = client.post(f"/api/v1/sync/verify/{pkg_id}", headers=field)
+    assert r.json()["verified"] is True
+    assert r.json()["status"] == "COMPLETED"
+
+
+def test_photo_chunk_integrity_failure(client, seeded, tmp_path):
+    """RN-04: si el hash no coincide, la foto no se da por recibida."""
+    settings.PHOTO_STORAGE_DIR = str(tmp_path)
+    admin = login(client, "admin")
+    device = _device_id(client, admin)
+    work = _work_by_code(client, admin, "REV-2026-001")
+    client.post("/api/v1/works/assign", headers=admin,
+                json={"device_id": device, "work_ids": [work["id"]]})
+    field = login(client, "campo.norte")
+
+    declared_sha = hashlib.sha256(b"lo-esperado").hexdigest()
+    payload = {
+        "idempotency_key": "pkg-bad",
+        "work_id": work["id"],
+        "device_uid": "ANDROID-DEMO-001",
+        "payload_json": json.dumps({"elements": []}),
+        "validation_result": "APPROVED",
+        "photos": [{"gps_lat": -0.2, "gps_lon": -78.5, "captured_at": "2026-07-17T10:00:00Z",
+                    "sha256": declared_sha, "size_bytes": 10, "total_chunks": 1}],
+    }
+    pkg_id = client.post("/api/v1/sync/upload", headers=field, json=payload).json()["package_id"]
+
+    # Se sube un contenido distinto al declarado -> integridad falla.
+    r = client.post(f"/api/v1/sync/photo/{declared_sha}/chunk", headers=field,
+                    params={"index": 0, "total": 1},
+                    files={"chunk": ("part0", b"otro-contenido", "application/octet-stream")})
+    assert r.json()["verified"] is False
+
+    r = client.post(f"/api/v1/sync/verify/{pkg_id}", headers=field)
+    assert r.json()["verified"] is False
+    assert r.json()["status"] == "SYNC_PENDING"
 
 
 def test_sync_pending_when_photo_missing(client, seeded):

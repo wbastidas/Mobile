@@ -40,6 +40,9 @@ export default function Layout() {
               Parámetros de calidad
             </NavLink>
           )}
+          <NavLink to="/reports" className="nav-link">
+            Reportes
+          </NavLink>
           <NavLink to="/audit" className="nav-link">
             Auditoría
           </NavLink>
