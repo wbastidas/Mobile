@@ -34,3 +34,12 @@ Thumbs.db
 node_modules/
 dist/
 build/
+
+# Android / Gradle (móvil)
+.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
+captures/
+.cxx/

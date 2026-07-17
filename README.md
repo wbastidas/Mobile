@@ -3,12 +3,12 @@
 Solución empresarial para el levantamiento y gestión de datos de redes de
 distribución eléctrica (postes y elementos relacionados), compuesta por:
 
-1. **WEB-ADMIN** — Plataforma web de administración (asignación, monitoreo,
-   auditoría, reportería). *Frontend React + TypeScript* — próxima iteración.
-2. **APP-CAMPO** — App Android nativa (Kotlin) para levantamiento offline sobre
-   GeoPackage — próxima iteración.
-3. **Backend API** — Base compartida (FastAPI/Python) con integración a la
-   geodatabase corporativa **ArcSDE/Oracle**. ✅ *Implementado en esta iteración.*
+1. **Backend API** — Base compartida (FastAPI/Python) con integración a la
+   geodatabase corporativa **ArcSDE/Oracle**. ✅ *Implementado.*
+2. **WEB-ADMIN** — Plataforma web de administración (asignación, monitoreo,
+   auditoría, reportería) en **React + TypeScript**. ✅ *Implementado.*
+3. **APP-CAMPO** — App **Android nativa (Kotlin)** para levantamiento offline
+   sobre GeoPackage. ✅ *Implementado (base funcional).*
 
 ## Estado actual
 
@@ -36,12 +36,17 @@ python -m pytest                # 11 pruebas
 
 ```
 .
-├── backend/                 # API FastAPI (esta iteración)
-│   ├── app/                 # código de la aplicación
-│   └── tests/               # pruebas pytest
+├── backend/                 # API FastAPI + modelo de datos + pruebas pytest
+├── frontend/                # WEB-ADMIN: SPA React + TypeScript (Vite)
+├── mobile/                  # APP-CAMPO: Android nativo (Kotlin)
+│   ├── core/                # Kotlin puro (validación de calidad) + tests JUnit
+│   └── app/                 # app Android (Compose, MVVM, sync offline)
 ├── docs/                    # documentación de arquitectura
 └── REQUERIMIENTOS_*.md      # documento de requerimientos (insumo)
 ```
+
+Guías por componente: [`backend/README.md`](backend/README.md) ·
+[`frontend/README.md`](frontend/README.md) · [`mobile/README.md`](mobile/README.md).
 
 ## Tecnología
 

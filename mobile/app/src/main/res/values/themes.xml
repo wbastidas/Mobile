@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema base; la UI real usa Material3 en Compose (ui/theme/Theme.kt). -->
+    <style name="Theme.Levantamiento" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
