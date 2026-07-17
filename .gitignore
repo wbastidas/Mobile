@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Base de datos local / desarrollo
+*.db
+*.sqlite
+*.sqlite3
+
+# Entorno
+.env
+
+# Herramientas
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Node / frontend (futuro)
+node_modules/
+dist/
+build/
