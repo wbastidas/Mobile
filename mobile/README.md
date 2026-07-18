@@ -61,6 +61,9 @@ La URL del backend se configura en `app/build.gradle.kts`
 | Validación de calidad en dispositivo | `core/quality/QualityValidator` | RF-MOV-09 |
 | Reporte de novedades por regla | `core/quality/ReportMapper` → `ValidationReportDto` | RF-WEB-09.2 |
 | Snapping a elementos existentes | `core/geo/SnappingEngine` | RF-MOV-06.2 |
+| Mapa interactivo (sector + elementos) | `ui/workdetail/OsmMap` (osmdroid) | RF-MOV-04/05 |
+| Captura de foto con cámara real | `ui/capture/PhotoCapture` | RF-MOV-08 |
+| Geometría para el mapa (GeoJSON) | `core/geo/GeoJson` | RF-MOV-05 |
 | Sincronización y cierre | `sync/SyncManager` | RF-MOV-10, RF-SYNC |
 | Idempotencia de sync | `core/model/Ids.idempotencyKey` | RF-SYNC.5 |
 
@@ -77,12 +80,9 @@ La URL del backend se configura en `app/build.gradle.kts`
 
 ## Pendientes / próximos pasos
 
-- Integración de **mapa interactivo** (MapLibre/osmdroid) sobre `MapPane`
-  (el **snapping** ya está implementado en `core/geo` e integrado en la captura
-  de punto; falta la visualización del ajuste sobre el mapa).
-- Captura real de **cámara** (los bytes se pasan a `PhotoManager.processAndStore`).
-- Endpoint de **subida de fotos por chunks** en el backend (contrato ya definido
-  en `ApiService.uploadPhotoChunk`).
+- **Mapa** (`OsmMap`, osmdroid) y **cámara** (`PhotoCapture`) ya integrados; se
+  compilan y prueban en dispositivo/emulador con Android Studio. Falta afinar el
+  ciclo de vida del `MapView` (onResume/onPause) y tiles offline.
 - Generación de formularios desde `SchemaDefinition` (§6.4) en la captura.
 - Certificate pinning (RF-SYNC.1) y pruebas instrumentadas de UI.
 

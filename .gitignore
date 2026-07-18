@@ -43,3 +43,6 @@ local.properties
 *.aab
 captures/
 .cxx/
+
+# Kotlin incremental compiler logs
+.kotlin/

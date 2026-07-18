@@ -1,16 +1,14 @@
 package com.empresa.levantamiento.ui.workdetail
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -25,10 +23,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.empresa.levantamiento.core.model.ElementRecord
+import com.empresa.levantamiento.ui.capture.rememberPhotoCapture
 
 /**
  * Vista de "mapa" con la presentación según el tipo de trabajo (RF-MOV-05).
@@ -39,23 +37,13 @@ import com.empresa.levantamiento.core.model.ElementRecord
 @Composable
 fun MapPane(state: WorkDetailState, onSelect: (String) -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        // Lienzo del mapa (placeholder). El sector/GeoJSON está disponible en el trabajo.
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
-                .background(Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-                .padding(24.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            val hint = when (state.work?.type) {
-                "REVISION_RED" -> "Mapa del sector · ${state.total} elementos"
-                "ORDEN_PUNTUAL" -> "Navegación asistida a elementos objetivo"
-                "MANTENIMIENTO" -> "Captura de elementos nuevos y modificados"
-                else -> "Mapa"
-            }
-            Text(hint, color = Color(0xFF475569), fontWeight = FontWeight.SemiBold)
-        }
+        // Lienzo del mapa interactivo (osmdroid): sector + elementos + selección.
+        OsmMap(
+            sectorGeoJson = state.work?.sectorGeoJson,
+            elements = state.elements,
+            onSelect = onSelect,
+            modifier = Modifier.fillMaxWidth().height(280.dp).padding(12.dp),
+        )
 
         Text(
             "Elementos del trabajo",
@@ -117,6 +105,9 @@ private fun CaptureForm(vm: WorkDetailViewModel, element: ElementRecord) {
     var observations by remember(element.guid) { mutableStateOf("") }
     var newKey by remember(element.guid) { mutableStateOf("") }
 
+    // Cámara real: los bytes capturados van a PhotoManager (compresión + metadata).
+    val photoCapture = rememberPhotoCapture(onCaptured = { bytes -> vm.addPhoto(element.guid, bytes) })
+
     Column(
         Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -160,9 +151,7 @@ private fun CaptureForm(vm: WorkDetailViewModel, element: ElementRecord) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // Modo "solo punto + fotos" (RF-MOV-07): sella la posición actual.
             FilledTonalButton(onClick = { vm.capturePoint(element) }) { Text("Capturar punto") }
-            FilledTonalButton(
-                onClick = { vm.addPhoto(element.guid, ByteArray(0)) },
-            ) { Text("Agregar foto") }
+            FilledTonalButton(onClick = { photoCapture.capture() }) { Text("Agregar foto") }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
