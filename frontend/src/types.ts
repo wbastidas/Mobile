@@ -99,3 +99,22 @@ export interface QualityParam {
   description: string | null;
   is_active: boolean;
 }
+
+export interface QualityNovelty {
+  id: string;
+  work_id: string;
+  element_guid: string | null;
+  element_type: string | null;
+  field: string | null;
+  rule_type: string;
+  message: string | null;
+  expected: string | null;
+  actual: string | null;
+}
+
+export interface TimelineEvent {
+  at: string;
+  action: string;
+  detail: string | null;
+  username: string | null;
+}

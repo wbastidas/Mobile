@@ -6,7 +6,9 @@ import type {
   CurrentUser,
   DashboardSummary,
   Device,
+  QualityNovelty,
   QualityParam,
+  TimelineEvent,
   UserRow,
   Work,
   WorkType,
@@ -57,6 +59,15 @@ export const dashboardApi = {
   summary: () => api.get<DashboardSummary>("/dashboard/summary").then((r) => r.data),
   map: (history = false) =>
     api.get<Work[]>("/dashboard/map", { params: { history } }).then((r) => r.data),
+  timeline: (workId: string) =>
+    api.get<TimelineEvent[]>(`/dashboard/works/${workId}/timeline`).then((r) => r.data),
+};
+
+export const noveltiesApi = {
+  byWork: (workId: string) =>
+    api
+      .get<QualityNovelty[]>("/quality/novelties", { params: { work_id: workId } })
+      .then((r) => r.data),
 };
 
 export const auditApi = {

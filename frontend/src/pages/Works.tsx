@@ -4,13 +4,15 @@ import { buApi, devicesApi, worksApi } from "@/api/endpoints";
 import { errorMessage } from "@/api/client";
 import { useAuth } from "@/auth/AuthContext";
 import { ErrorBox, Loading, PageHeader, StatusBadge, typeLabel } from "@/components/ui";
-import type { WorkType } from "@/types";
+import WorkDetailDrawer from "@/components/WorkDetailDrawer";
+import type { Work, WorkType } from "@/types";
 
 export default function Works() {
   const qc = useQueryClient();
   const { isOperator } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [assigning, setAssigning] = useState<string | null>(null); // work id
+  const [detailWork, setDetailWork] = useState<Work | null>(null);
   const [error, setError] = useState("");
 
   const works = useQuery({ queryKey: ["works"], queryFn: () => worksApi.list() });
@@ -63,6 +65,7 @@ export default function Works() {
               <th>Estado</th>
               <th>Dispositivo</th>
               {isOperator && <th>Acciones</th>}
+              <th>Detalle</th>
             </tr>
           </thead>
           <tbody>
@@ -104,12 +107,17 @@ export default function Works() {
                       )}
                     </td>
                   )}
+                  <td>
+                    <button className="btn secondary sm" onClick={() => setDetailWork(w)}>
+                      Ver
+                    </button>
+                  </td>
                 </tr>
               );
             })}
             {works.data!.length === 0 && (
               <tr>
-                <td colSpan={isOperator ? 6 : 5} className="empty">
+                <td colSpan={isOperator ? 7 : 6} className="empty">
                   No hay trabajos en su ámbito.
                 </td>
               </tr>
@@ -126,6 +134,10 @@ export default function Works() {
             qc.invalidateQueries({ queryKey: ["works"] });
           }}
         />
+      )}
+
+      {detailWork && (
+        <WorkDetailDrawer work={detailWork} onClose={() => setDetailWork(null)} />
       )}
     </>
   );
