@@ -27,6 +27,7 @@ from app.core.enums import (
 from app.models.device import Device
 from app.models.element import Element, WorkElement
 from app.models.element_log import ElementLog
+from app.models.quality_novelty import QualityNovelty
 from app.models.quality_params import QualityParamSet, SchemaDefinition
 from app.models.sync import Photo, RemoteDeleteOrder, SyncPackage
 from app.models.user import User
@@ -49,6 +50,32 @@ def _field_user(user: User = Depends(get_current_user)) -> User:
     if role != Role.FIELD.value:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Solo funcionarios de campo.")
     return user
+
+
+def _persist_novelties(db: Session, pkg: SyncPackage, report_json: str | None) -> None:
+    """Extrae del reporte de validación las novedades por regla y las persiste.
+
+    Tolera formatos: el DTO detallado {"result":..,"issues":[{...}]} o el conteo
+    simple {"issues": n} (retrocompatible; en ese caso no hay detalle que guardar).
+    """
+    if not report_json:
+        return
+    try:
+        data = json.loads(report_json)
+    except (json.JSONDecodeError, TypeError):
+        return
+    issues = data.get("issues")
+    if not isinstance(issues, list):
+        return
+    for it in issues:
+        if not isinstance(it, dict):
+            continue
+        db.add(QualityNovelty(
+            package_id=pkg.id, work_id=pkg.work_id, un_id=pkg.un_id,
+            element_guid=it.get("element_guid"), element_type=it.get("element_type"),
+            field=it.get("field"), rule_type=it.get("rule_type") or "desconocida",
+            message=it.get("message"), expected=it.get("expected"), actual=it.get("actual"),
+        ))
 
 
 def _get_device(db: Session, device_uid: str, user: User) -> Device:
@@ -148,6 +175,9 @@ def upload(payload: SyncUploadRequest, db: Session = Depends(get_db), user: User
                      user_id=user.id, device_id=device.id, sha256=ph.sha256,
                      size_bytes=ph.size_bytes, total_chunks=max(1, ph.total_chunks),
                      fully_received=(ph.total_chunks <= 1 and ph.size_bytes == 0)))
+
+    # Persistir el detalle de novedades de calidad por regla (RF-WEB-09.2).
+    _persist_novelties(db, pkg, payload.validation_report_json)
 
     work.status = WorkStatus.SYNCING
     work.validation_result = payload.validation_result

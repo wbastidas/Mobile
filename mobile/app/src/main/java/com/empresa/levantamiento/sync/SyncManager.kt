@@ -3,7 +3,9 @@ package com.empresa.levantamiento.sync
 import com.empresa.levantamiento.core.model.Ids
 import com.empresa.levantamiento.core.quality.QualityReport
 import com.empresa.levantamiento.core.quality.QualityValidator
+import com.empresa.levantamiento.core.quality.toDto
 import com.empresa.levantamiento.core.sync.PhotoMetaDto
+import com.empresa.levantamiento.core.sync.ValidationReportDto
 import com.empresa.levantamiento.core.sync.SyncUploadRequest
 import com.empresa.levantamiento.data.local.GeoPackageStore
 import com.empresa.levantamiento.data.local.ParamsStore
@@ -142,9 +144,9 @@ class SyncManager(
                     schemaVersion = params.schemaVersion,
                     payloadJson = payloadJson,
                     validationResult = report.result.name,
+                    // Reporte detallado por elemento y por regla (RF-WEB-09.2).
                     validationReportJson = json.encodeToString(
-                        kotlinx.serialization.json.JsonObject.serializer(),
-                        buildJsonObject { put("issues", report.issues.size) }
+                        ValidationReportDto.serializer(), report.toDto()
                     ),
                     photos = photoMetas,
                 )

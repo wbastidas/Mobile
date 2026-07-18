@@ -59,6 +59,8 @@ La URL del backend se configura en `app/build.gradle.kts`
 | Modo solo punto + fotos | `WorkDetailViewModel.capturePoint` | RF-MOV-07 |
 | Fotos con metadata/compresión/hash | `media/PhotoManager` | RF-MOV-08, RN-08 |
 | Validación de calidad en dispositivo | `core/quality/QualityValidator` | RF-MOV-09 |
+| Reporte de novedades por regla | `core/quality/ReportMapper` → `ValidationReportDto` | RF-WEB-09.2 |
+| Snapping a elementos existentes | `core/geo/SnappingEngine` | RF-MOV-06.2 |
 | Sincronización y cierre | `sync/SyncManager` | RF-MOV-10, RF-SYNC |
 | Idempotencia de sync | `core/model/Ids.idempotencyKey` | RF-SYNC.5 |
 
@@ -75,8 +77,9 @@ La URL del backend se configura en `app/build.gradle.kts`
 
 ## Pendientes / próximos pasos
 
-- Integración de **mapa interactivo** (MapLibre/osmdroid) sobre `MapPane` y de
-  **snapping** con tolerancia (RF-MOV-06.2).
+- Integración de **mapa interactivo** (MapLibre/osmdroid) sobre `MapPane`
+  (el **snapping** ya está implementado en `core/geo` e integrado en la captura
+  de punto; falta la visualización del ajuste sobre el mapa).
 - Captura real de **cámara** (los bytes se pasan a `PhotoManager.processAndStore`).
 - Endpoint de **subida de fotos por chunks** en el backend (contrato ya definido
   en `ApiService.uploadPhotoChunk`).

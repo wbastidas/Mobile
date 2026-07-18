@@ -4,12 +4,20 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.empresa.levantamiento.core.geo.Point
+import com.empresa.levantamiento.core.geo.SnapTarget
+import com.empresa.levantamiento.core.geo.SnappingEngine
 import com.empresa.levantamiento.core.model.ElementRecord
 import com.empresa.levantamiento.core.model.Ids
 import com.empresa.levantamiento.data.local.GeoPackageStore
 import com.empresa.levantamiento.di.ServiceLocator
 import com.empresa.levantamiento.sync.SyncManager
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 data class WorkDetailState(
     val work: GeoPackageStore.WorkRow? = null,
@@ -69,18 +77,34 @@ class WorkDetailViewModel(private val workId: String) : ViewModel() {
         reload()
     }
 
-    /** Modo "solo punto + fotos": sella la posición actual como geometría (RF-MOV-07). */
-    fun capturePoint(element: ElementRecord) {
+    /**
+     * Modo "solo punto + fotos": sella la posición actual como geometría (RF-MOV-07),
+     * aplicando snapping al elemento existente más cercano dentro de la tolerancia
+     * (RF-MOV-06.2).
+     */
+    fun capturePoint(element: ElementRecord, snapToleranceMeters: Double = 5.0) {
         viewModelScope.launch {
             val pos = location.current()
             if (pos == null) {
                 _state.value = _state.value.copy(message = "No se pudo obtener la ubicación.")
                 return@launch
             }
-            val geom = """{"type":"Point","coordinates":[${pos.lon},${pos.lat}]}"""
+            var captured = Point(pos.lon, pos.lat)
+            var snappedMsg = "Punto capturado."
+
+            // Candidatos: vértices de otros elementos del trabajo con geometría de punto.
+            val targets = _state.value.elements
+                .filter { it.guid != element.guid }
+                .mapNotNull { e -> parsePoint(e.geometryGeoJson)?.let { SnapTarget.Vertex(e.guid, it) } }
+            SnappingEngine(snapToleranceMeters).snap(captured, targets)?.let { snap ->
+                captured = snap.snapped
+                snappedMsg = "Punto ajustado a ${snap.targetGuid} (%.1f m).".format(snap.distanceMeters)
+            }
+
+            val geom = """{"type":"Point","coordinates":[${captured.lon},${captured.lat}]}"""
             repo.saveElement(workId, element.copy(geometryGeoJson = geom), null, false)
             reload()
-            _state.value = _state.value.copy(message = "Punto capturado.")
+            _state.value = _state.value.copy(message = snappedMsg)
         }
     }
 
@@ -105,5 +129,19 @@ class WorkDetailViewModel(private val workId: String) : ViewModel() {
             _state.value = _state.value.copy(busy = false)
             onResult(outcome)
         }
+    }
+
+    /** Extrae [lon, lat] de una geometría GeoJSON de tipo Point; null si no aplica. */
+    private fun parsePoint(geoJson: String?): Point? {
+        if (geoJson.isNullOrBlank()) return null
+        return runCatching {
+            val obj = Json.parseToJsonElement(geoJson).jsonObject
+            if (obj["type"]?.jsonPrimitive?.content != "Point") return null
+            val coords = obj["coordinates"]!!.jsonArray
+            Point(
+                lon = coords[0].jsonPrimitive.doubleOrNull ?: return null,
+                lat = coords[1].jsonPrimitive.doubleOrNull ?: return null,
+            )
+        }.getOrNull()
     }
 }

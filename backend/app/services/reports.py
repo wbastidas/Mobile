@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.enums import ValidationResult, WorkStatus
 from app.models.business_unit import BusinessUnit
 from app.models.device import Device
+from app.models.quality_novelty import QualityNovelty
 from app.models.work import Work
 
 _ACTIVE = [WorkStatus.ASSIGNED, WorkStatus.DOWNLOADED, WorkStatus.IN_PROGRESS,
@@ -112,11 +113,41 @@ def quality_novelties(db: Session, un_scope: Optional[str], filters: dict) -> li
     return sorted(rows.values(), key=lambda x: (x["unidad_negocio"], x["tipo_trabajo"]))
 
 
+def quality_novelties_by_rule(db: Session, un_scope: Optional[str], filters: dict) -> list[dict]:
+    """Novedades de calidad más frecuentes por regla/campo/tipo (RF-WEB-11.1).
+
+    Se agrega desde el detalle persistido (QualityNovelty), no desde el trabajo,
+    permitiendo ver qué reglas se incumplen con más frecuencia.
+    """
+    q = db.query(QualityNovelty)
+    if un_scope is not None:
+        q = q.filter(QualityNovelty.un_id == un_scope)
+    if filters.get("un_id"):
+        q = q.filter(QualityNovelty.un_id == filters["un_id"])
+    if filters.get("date_from"):
+        q = q.filter(QualityNovelty.created_at >= filters["date_from"])
+    if filters.get("date_to"):
+        q = q.filter(QualityNovelty.created_at <= filters["date_to"])
+
+    rows: dict[tuple, dict] = {}
+    for n in q.all():
+        key = (n.element_type, n.field, n.rule_type)
+        r = rows.setdefault(key, {
+            "tipo_elemento": n.element_type or "—",
+            "campo": n.field or "—",
+            "regla": n.rule_type,
+            "ocurrencias": 0,
+        })
+        r["ocurrencias"] += 1
+    return sorted(rows.values(), key=lambda x: x["ocurrencias"], reverse=True)
+
+
 REPORTS = {
     "works-summary": ("Resumen de trabajos", works_summary),
     "productivity": ("Productividad por dispositivo", productivity),
     "cycle-times": ("Tiempos de ciclo", cycle_times),
-    "quality-novelties": ("Novedades de calidad", quality_novelties),
+    "quality-novelties": ("Novedades de calidad (por trabajo)", quality_novelties),
+    "quality-by-rule": ("Novedades de calidad más frecuentes (por regla)", quality_novelties_by_rule),
 }
 
 

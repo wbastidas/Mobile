@@ -62,3 +62,25 @@ data class SyncVerifyResponse(
     val status: String,
     val detail: String = "",
 )
+
+/**
+ * Reporte detallado de validación de calidad que viaja en el paquete de sync,
+ * para que la web muestre las novedades por elemento y por regla (RF-WEB-09.2)
+ * y agregue las más frecuentes (RF-WEB-11.1).
+ */
+@Serializable
+data class ValidationIssueDto(
+    @SerialName("element_guid") val elementGuid: String,
+    @SerialName("element_type") val elementType: String,
+    val field: String? = null,
+    @SerialName("rule_type") val ruleType: String,
+    val message: String,
+    val expected: String? = null,
+    val actual: String? = null,
+)
+
+@Serializable
+data class ValidationReportDto(
+    val result: String,
+    val issues: List<ValidationIssueDto> = emptyList(),
+)
