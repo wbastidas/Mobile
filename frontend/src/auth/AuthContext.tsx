@@ -41,6 +41,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    // Revoca el refresh token en el servidor (cierre de sesión explícito).
+    const refresh = tokenStore.getRefresh();
+    if (refresh) {
+      api.post("/auth/logout", { refresh_token: refresh }).catch(() => {});
+    }
     tokenStore.clear();
     setUser(null);
   };

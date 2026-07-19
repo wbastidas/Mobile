@@ -76,7 +76,7 @@ cd mobile/core && gradle test                          # 19 pruebas JUnit
 | RF-SYNC | Canal seguro, idempotencia, estados, incremental | `api/v1/sync.py`, `core/model/Ids`, `sync/SyncManager` | ✅ |
 | RF-SYNC.3/4 | Fotos por chunks + integridad | `sync/photo/{sha}/chunk`, `services/photo_storage.py` | ✅ probado |
 | §6 Modelo | GUID, relaciones, esquema evolutivo, versión | `models/`, `SchemaDefinition`, `Work.schema_version` | ✅ dirigido por metadatos |
-| §7 GIS | Origen/destino ArcSDE/Oracle aislado | `modules/gis/adapter.py` (interfaz + stub) | ✅ adaptador; impl. real = PD-02 |
+| §7 GIS | Origen/destino ArcSDE/Oracle aislado | `modules/gis/{adapter,staging}.py`, `api/v1/gis.py` | ✅ **staging reversible con revisión/aprobación/rollback** (4 tests); conector físico según PD-02 — análisis en `docs/INTEGRACION_ARCSDE.md` |
 
 ## 6. Reglas de negocio (RN)
 
@@ -100,7 +100,7 @@ Todas verificadas con pruebas automatizadas salvo indicación:
 
 | ID | Estado |
 |---|---|
-| RNF-01 Seguridad | JWT, hashing, sesión cifrada (Keystore), TLS en producción, auditoría inmutable · **endurecimiento verificado**: validación estricta de SHA-256 (anti path-traversal en subida de fotos, en esquema + endpoint + capa de almacenamiento), límite de tamaño por chunk (413), índices de chunk acotados, cabeceras OWASP (nosniff, X-Frame-Options, Referrer-Policy, HSTS en prod), y la app **se niega a arrancar en producción con el SECRET_KEY por defecto** · ✅ con 6 pruebas dedicadas (`tests/test_security.py`) |
+| RNF-01 Seguridad | JWT, hashing, sesión cifrada (Keystore), TLS en producción, auditoría inmutable · **endurecimiento verificado**: validación estricta de SHA-256 (anti path-traversal en subida de fotos, en esquema + endpoint + capa de almacenamiento), límite de tamaño por chunk (413), índices de chunk acotados, cabeceras OWASP (nosniff, X-Frame-Options, Referrer-Policy, HSTS en prod), la app **se niega a arrancar en producción con el SECRET_KEY por defecto**, **rotación de refresh tokens de un solo uso con detección de reuso** (replay revoca toda la familia), logout que revoca en servidor, y **rate limiting por IP** en logins · ✅ con 10 pruebas dedicadas (`test_security.py`, `test_token_lifecycle.py`) |
 | RNF-02 Rendimiento | índices, lazy loading, IO fuera de UI · ✅ base (falta profiling en dispositivo) |
 | RNF-03 Plataforma/despliegue | Backend Windows Server (Python), web SPA, Android 8.0+ · ✅ |
 | RNF-04 Usabilidad | UI moderna web/móvil, contraste/tamaños táctiles · ✅ base |
@@ -126,7 +126,7 @@ Todas verificadas con pruebas automatizadas salvo indicación:
 
 | Suite | Pruebas | Estado |
 |---|---|---|
-| Backend `pytest` | 29 (incl. 6 de seguridad) | ✅ |
+| Backend `pytest` | 37 (incl. 10 de seguridad y 4 de staging GIS) | ✅ |
 | Móvil `core` JUnit | 19 | ✅ |
 | Frontend build (`tsc` + `vite`) | — | ✅ sin errores |
 | UI web (Playwright headless) | flujo login → dashboard → trabajos → detalle → reportes | ✅ verificado visualmente |

@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import client_ip, get_current_user, is_global_scope
 from app.core.enums import AuditAction, AuthType, Role
+from app.core.ratelimit import login_limiter
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -15,6 +16,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.device import Device
+from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.auth import (
     CurrentUser,
@@ -28,11 +30,19 @@ from app.services import audit
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _issue_tokens(user: User) -> Token:
+def _issue_tokens(db: Session, user: User) -> Token:
+    """Emite access + refresh; el refresh se persiste (jti) para rotación."""
     claims = {"role": user.role, "un_id": user.un_id}
+    record = RefreshToken(
+        user_id=user.id,
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES),
+    )
+    db.add(record)
+    db.flush()
     return Token(
         access_token=create_access_token(user.id, extra_claims=claims),
-        refresh_token=create_refresh_token(user.id),
+        refresh_token=create_refresh_token(user.id, jti=record.id),
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
@@ -62,6 +72,7 @@ def _register_failure(db: Session, user: User, request: Request) -> None:
 @router.post("/login", response_model=Token)
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     """Login web. Soporta LOCAL (usuario/clave) y CORPORATE (delegado)."""
+    login_limiter.check(client_ip(request))  # límite por IP (RNF-01)
     user = db.query(User).filter(User.username == payload.username).first()
     if not user or not user.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Usuario o contraseña inválidos.")
@@ -85,13 +96,15 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     user.last_login_at = datetime.now(timezone.utc)
     audit.record(db, action=AuditAction.LOGIN.value, actor=user,
                  entity_type="User", entity_id=user.id, ip_address=client_ip(request))
+    tokens = _issue_tokens(db, user)
     db.commit()
-    return _issue_tokens(user)
+    return tokens
 
 
 @router.post("/mobile/login", response_model=Token)
 def mobile_login(payload: MobileLoginRequest, request: Request, db: Session = Depends(get_db)):
     """Login móvil: funcionario de campo + dispositivo autorizado (RF-MOV-01.2)."""
+    login_limiter.check(client_ip(request))  # límite por IP (RNF-01)
     user = db.query(User).filter(User.username == payload.username).first()
     if not user or not user.active or user.role != Role.FIELD.value:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciales de campo inválidas.")
@@ -118,19 +131,63 @@ def mobile_login(payload: MobileLoginRequest, request: Request, db: Session = De
     user.last_login_at = datetime.now(timezone.utc)
     audit.record(db, action=AuditAction.LOGIN.value, actor=user, entity_type="Device",
                  entity_id=device.id, device_id=device.id, ip_address=client_ip(request))
+    tokens = _issue_tokens(db, user)
     db.commit()
-    return _issue_tokens(user)
+    return tokens
 
 
 @router.post("/refresh", response_model=Token)
 def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+    """Rotación de refresh tokens con detección de reuso (RNF-01).
+
+    Cada refresh token es de un solo uso: al canjearlo se revoca y se emite uno
+    nuevo. Presentar un token ya revocado se trata como robo/replay y revoca
+    todos los tokens vigentes del usuario.
+    """
     data = decode_token(payload.refresh_token)
-    if not data or data.get("type") != "refresh":
+    if not data or data.get("type") != "refresh" or not data.get("jti"):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token inválido.")
-    user = db.get(User, data.get("sub"))
+
+    record = db.get(RefreshToken, data["jti"])
+    if not record or record.user_id != data.get("sub"):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token inválido.")
+
+    if record.revoked:
+        # Reuso detectado: revocar toda la familia de tokens del usuario.
+        db.query(RefreshToken).filter(
+            RefreshToken.user_id == record.user_id, RefreshToken.revoked.is_(False)
+        ).update({RefreshToken.revoked: True})
+        db.commit()
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED,
+                            "Refresh token reutilizado; sesiones revocadas.")
+
+    expires_at = record.expires_at
+    if expires_at.tzinfo is None:  # SQLite devuelve naive; se asume UTC
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token expirado.")
+
+    user = db.get(User, record.user_id)
     if not user or not user.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Usuario inválido.")
-    return _issue_tokens(user)
+
+    record.revoked = True
+    tokens = _issue_tokens(db, user)
+    new_data = decode_token(tokens.refresh_token) or {}
+    record.replaced_by = new_data.get("jti")
+    db.commit()
+    return tokens
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(payload: RefreshRequest, db: Session = Depends(get_db)):
+    """Cierre de sesión explícito (RF-WEB-01.4): revoca el refresh token."""
+    data = decode_token(payload.refresh_token)
+    if data and data.get("type") == "refresh" and data.get("jti"):
+        record = db.get(RefreshToken, data["jti"])
+        if record:
+            record.revoked = True
+            db.commit()
 
 
 @router.get("/me", response_model=CurrentUser)

@@ -24,6 +24,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.empresa.levantamiento.sync.SyncManager
 
 /**
  * Detalle de un trabajo con interfaz ADAPTATIVA (RF-MOV-04):
@@ -48,6 +50,20 @@ fun WorkDetailScreen(
         factory = viewModelFactory { initializer { WorkDetailViewModel(workId) } }
     )
     val state by vm.state
+    var syncOutcome by remember { mutableStateOf<SyncManager.SyncOutcome?>(null) }
+
+    // Resultado de la sincronización: novedades explicadas, oferta de
+    // eliminación local tras verificación, o motivo del estado pendiente.
+    syncOutcome?.let { outcome ->
+        SyncResultDialog(
+            outcome = outcome,
+            onDismiss = { syncOutcome = null },
+            onDeleteLocal = {
+                syncOutcome = null
+                vm.deleteLocal(onDone = onBack)
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -67,7 +83,7 @@ fun WorkDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { vm.sync { } }, enabled = !state.busy) {
+                    IconButton(onClick = { vm.sync { syncOutcome = it } }, enabled = !state.busy) {
                         Icon(Icons.Default.Sync, contentDescription = "Sincronizar trabajo")
                     }
                 },

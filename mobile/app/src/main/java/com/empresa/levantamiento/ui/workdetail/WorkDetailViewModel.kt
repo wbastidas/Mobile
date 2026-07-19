@@ -131,6 +131,12 @@ class WorkDetailViewModel(private val workId: String) : ViewModel() {
         }
     }
 
+    /** Elimina el trabajo del dispositivo; solo se invoca tras sync verificada (RN-03). */
+    fun deleteLocal(onDone: () -> Unit) {
+        sync.deleteLocal(workId)
+        onDone()
+    }
+
     /** Extrae [lon, lat] de una geometría GeoJSON de tipo Point; null si no aplica. */
     private fun parsePoint(geoJson: String?): Point? {
         if (geoJson.isNullOrBlank()) return null

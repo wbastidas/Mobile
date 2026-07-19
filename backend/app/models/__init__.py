@@ -4,7 +4,9 @@ from app.models.business_unit import BusinessUnit
 from app.models.device import Device
 from app.models.element import Element, WorkElement
 from app.models.element_log import ElementLog
+from app.models.gis_staging import GISStagingBatch, GISStagingElement
 from app.models.quality_novelty import QualityNovelty
+from app.models.refresh_token import RefreshToken
 from app.models.quality_params import QualityParamSet, SchemaDefinition
 from app.models.sync import Photo, RemoteDeleteOrder, SyncPackage
 from app.models.user import User
@@ -17,8 +19,11 @@ __all__ = [
     "Element",
     "WorkElement",
     "ElementLog",
+    "GISStagingBatch",
+    "GISStagingElement",
     "QualityNovelty",
     "QualityParamSet",
+    "RefreshToken",
     "SchemaDefinition",
     "Photo",
     "RemoteDeleteOrder",

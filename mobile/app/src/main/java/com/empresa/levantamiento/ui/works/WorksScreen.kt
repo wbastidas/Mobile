@@ -80,6 +80,22 @@ fun WorksScreen(onOpenWork: (String) -> Unit, vm: WorksViewModel = viewModel()) 
                                     style = MaterialTheme.typography.labelLarge,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
+                                // Avance porcentual del trabajo (RF-MOV-05).
+                                val (done, total) = state.progress[w.id] ?: (0 to 0)
+                                if (total > 0) {
+                                    LinearProgressIndicator(
+                                        progress = { done.toFloat() / total },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 10.dp),
+                                    )
+                                    Text(
+                                        "$done de $total elementos completados",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 4.dp),
+                                    )
+                                }
                             }
                         }
                     }

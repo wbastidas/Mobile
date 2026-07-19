@@ -311,7 +311,9 @@ def verify(package_id: str, db: Session = Depends(get_db), user: User = Depends(
                                           attributes=attrs, parent_guid=entity.parent_guid))
 
     # Consolidación hacia ArcSDE/Oracle mediante el adaptador aislado (§7.2, RN-11).
-    result = get_gis_adapter().consolidate(work.business_unit.code, extracted)
+    # Con el adaptador de staging, esto crea un lote reversible en revisión.
+    result = get_gis_adapter().consolidate(work.business_unit.code, extracted,
+                                           db=db, work_id=work.id)
     if not result.ok:
         work.status = WorkStatus.SYNC_PENDING
         db.commit()

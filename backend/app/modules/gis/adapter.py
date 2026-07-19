@@ -44,9 +44,13 @@ class GISAdapter(abc.ABC):
         """Extrae elementos específicos por GUID (ORDEN_PUNTUAL)."""
 
     @abc.abstractmethod
-    def consolidate(self, un_code: str, elements: List[ExtractedElement]) -> ConsolidationResult:
+    def consolidate(self, un_code: str, elements: List[ExtractedElement],
+                    db: Any = None, work_id: Optional[str] = None) -> ConsolidationResult:
         """Consolida cambios verificados hacia ArcSDE/Oracle preservando GUIDs y
-        relaciones puesto/unidad (§7.2). Debe ser reversible (staging, §7.4)."""
+        relaciones puesto/unidad (§7.2). Debe ser reversible (staging, §7.4).
+
+        `db` es la sesión SQLAlchemy de la petición cuando aplica (permite que
+        el staging sea atómico con la sincronización que lo origina)."""
 
 
 class StubGISAdapter(GISAdapter):
@@ -81,7 +85,8 @@ class StubGISAdapter(GISAdapter):
             for g in guids
         ]
 
-    def consolidate(self, un_code: str, elements: List[ExtractedElement]) -> ConsolidationResult:
+    def consolidate(self, un_code: str, elements: List[ExtractedElement],
+                    db: Any = None, work_id: Optional[str] = None) -> ConsolidationResult:
         guids = [e.guid for e in elements]
         return ConsolidationResult(
             ok=True,
@@ -91,9 +96,11 @@ class StubGISAdapter(GISAdapter):
         )
 
 
-_adapter: GISAdapter = StubGISAdapter()
-
-
 def get_gis_adapter() -> GISAdapter:
-    """Punto único de acceso al adaptador GIS (inyectable/reemplazable)."""
-    return _adapter
+    """Punto único de acceso al adaptador GIS, elegido por configuración."""
+    from app.core.config import settings
+
+    if settings.GIS_ADAPTER == "staging":
+        from app.modules.gis.staging import StagingGISAdapter
+        return StagingGISAdapter()
+    return StubGISAdapter()

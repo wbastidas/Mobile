@@ -12,6 +12,15 @@ from app.core.database import Base, get_db
 from app.main import app
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """El limitador por IP es global al proceso; se limpia entre pruebas."""
+    from app.core.ratelimit import login_limiter
+    login_limiter.reset()
+    yield
+    login_limiter.reset()
+
+
 @pytest.fixture()
 def db_session():
     fd, path = tempfile.mkstemp(suffix=".db")

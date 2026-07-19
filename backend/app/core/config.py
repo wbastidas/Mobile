@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     PASSWORD_MIN_LENGTH: int = 10
     MAX_FAILED_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
+    # Límite de intentos de login por IP y minuto (además del bloqueo por cuenta).
+    LOGIN_RATE_LIMIT_PER_MINUTE: int = 20
 
     # --- Autenticación corporativa (RF-WEB-01.1) ---
     # Placeholders; el mecanismo real (LDAP/SAML/OIDC) se define en PD-05.
@@ -45,6 +47,11 @@ class Settings(BaseSettings):
     # --- Sincronización ---
     UPLOAD_CHUNK_MAX_BYTES: int = 5 * 1024 * 1024  # 5 MB por chunk
     PHOTO_STORAGE_DIR: str = "./storage"  # raíz de almacenamiento de fotos
+
+    # --- Integración GIS (§7) ---
+    # "staging": lotes reversibles en BD con revisión/aprobación (recomendado).
+    # "stub": simulado, solo para pruebas unitarias aisladas.
+    GIS_ADAPTER: str = "staging"
 
 
 @lru_cache

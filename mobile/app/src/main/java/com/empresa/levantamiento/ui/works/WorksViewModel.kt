@@ -11,6 +11,8 @@ import kotlinx.coroutines.launch
 
 data class WorksState(
     val works: List<GeoPackageStore.WorkRow> = emptyList(),
+    /** Avance por trabajo: workId -> (completados, total) — RF-MOV-05. */
+    val progress: Map<String, Pair<Int, Int>> = emptyMap(),
     val syncing: Boolean = false,
     val message: String? = null,
 )
@@ -25,7 +27,11 @@ class WorksViewModel : ViewModel() {
     init { refresh() }
 
     fun refresh() {
-        _state.value = _state.value.copy(works = repo.works())
+        val works = repo.works()
+        _state.value = _state.value.copy(
+            works = works,
+            progress = works.associate { it.id to repo.progress(it.id) },
+        )
     }
 
     /** Descarga incremental al detectar conexión (RF-MOV-02.2). */
@@ -37,9 +43,9 @@ class WorksViewModel : ViewModel() {
                 // Ejecuta órdenes de borrado remoto recibidas (RF-WEB-05).
                 toDelete.forEach { sync.confirmRemoteDelete(it) }
                 _state.value = _state.value.copy(
-                    syncing = false, works = repo.works(),
-                    message = "Sincronización de bajada completada.",
+                    syncing = false, message = "Sincronización de bajada completada.",
                 )
+                refresh()
             }.onFailure {
                 _state.value = _state.value.copy(syncing = false, message = "Sin conexión o error al descargar.")
             }
