@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Archivo temporal de captura de cámara (cacheDir). -->
+    <cache-path name="captures" path="." />
+    <!-- Fotos organizadas por trabajo (filesDir/photos). -->
+    <files-path name="photos" path="photos/" />
+</paths>

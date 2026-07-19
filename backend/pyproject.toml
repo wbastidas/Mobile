@@ -1,0 +1,10 @@
+[project]
+name = "levantamiento-electrico-backend"
+version = "1.0.0"
+description = "Backend API del Sistema de Gestión y Levantamiento de Datos Eléctricos en Campo"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["."]

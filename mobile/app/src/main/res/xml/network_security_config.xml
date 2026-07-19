@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Producción: todo el tráfico va sobre HTTPS/TLS 1.2+ (RF-SYNC.1); el cleartext
+  queda deshabilitado por defecto. Se permite cleartext SOLO hacia el backend de
+  desarrollo (emulador: 10.0.2.2) para facilitar pruebas locales.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>
