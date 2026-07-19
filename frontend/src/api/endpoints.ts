@@ -129,6 +129,7 @@ export const gisApi = {
       .then((r) => r.data),
   approve: (id: string) => api.post(`/gis/staging/${id}/approve`).then((r) => r.data),
   rollback: (id: string) => api.post(`/gis/staging/${id}/rollback`).then((r) => r.data),
+  retry: (id: string) => api.post(`/gis/staging/${id}/retry`).then((r) => r.data),
 };
 
 export interface FieldChange {

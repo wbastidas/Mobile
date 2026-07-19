@@ -89,6 +89,7 @@ class SyncManager(
         body["quality_params_version"]?.jsonPrimitive?.intOrNull?.let { params.qualityVersion = it }
         body["quality_params_rules"]?.let { params.qualityRulesJson = it.toString() }
         body["schema_version"]?.jsonPrimitive?.intOrNull?.let { params.schemaVersion = it }
+        body["schema_definition"]?.let { params.schemaDefinitionJson = it.toString() }
 
         body["remote_delete_work_ids"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
     }

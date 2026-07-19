@@ -110,23 +110,25 @@ Todas verificadas con pruebas automatizadas salvo indicación:
 
 ## 8. Pendientes
 
+**Resueltos en iteraciones recientes:**
+- Formularios de captura generados desde `SchemaDefinition` (§6.4) — `core/schema/SchemaFields` (probado) + render en la app.
+- Certificate pinning (RF-SYNC.1) — configurable por `BuildConfig` en OkHttp.
+- Migraciones **Alembic** + notas PostGIS — migración inicial verificada en SQLite.
+- Adaptador GIS real: **cola de edición secuencial** + editores **Oracle/ArcPy** tras la interfaz + **reintento** automático/manual.
+- Auth corporativa **LDAP** tras interfaz (PD-05, activable por config).
+
 **No verificables en este entorno (requieren Android SDK/dispositivo):**
-- Compilar el APK y pruebas instrumentadas de UI.
-- Afinar ciclo de vida del `MapView` (osmdroid) y tiles offline.
+- Compilar el APK y pruebas instrumentadas de UI (el `MapView` ya maneja onResume/onPause/onDetach).
+- Tiles offline del mapa.
 
-**Pulido / siguientes iteraciones:**
-- Formularios de captura generados desde `SchemaDefinition` (§6.4).
-- Certificate pinning (RF-SYNC.1) en la app.
-- Migraciones Alembic + PostGIS (hoy SQLite en dev, código agnóstico a la BD).
-- Implementación real del adaptador GIS (ArcPy / servicios REST / staging Oracle).
-
-**Pendientes de definición del negocio (del documento):** PD-01 a PD-05.
+**Pendientes de definición del negocio (del documento):** PD-01 a PD-05 (mecanismos ya preparados tras interfaces; se activan al cerrar cada punto).
 
 ## 9. Conteo de pruebas
 
 | Suite | Pruebas | Estado |
 |---|---|---|
-| Backend `pytest` | 37 (incl. 10 de seguridad y 4 de staging GIS) | ✅ |
-| Móvil `core` JUnit | 19 | ✅ |
+| Backend `pytest` | 53 (seguridad, staging/cola GIS, reintentos, editor, CRUD/histórico, LDAP) | ✅ |
+| Móvil `core` JUnit | 22 | ✅ |
+| Migración Alembic (`upgrade head`) | 19 tablas aplicadas en SQLite | ✅ |
 | Frontend build (`tsc` + `vite`) | — | ✅ sin errores |
-| UI web (Playwright headless) | flujo login → dashboard → trabajos → detalle → reportes | ✅ verificado visualmente |
+| UI web (Playwright headless) | login → dashboard → trabajos → detalle → reportes → consolidación → historial | ✅ verificado visualmente |

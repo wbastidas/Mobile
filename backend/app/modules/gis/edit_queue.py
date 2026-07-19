@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import queue
 import threading
+import time
 from typing import Callable, Optional
 
 from app.core import database
@@ -29,7 +30,9 @@ class EditQueue:
     def __init__(self, editor_factory: Optional[Callable[[], object]] = None):
         self._editor_factory = editor_factory
         self._q: "queue.Queue[Optional[str]]" = queue.Queue()
-        self._session_lock = threading.Lock()  # una edición a la vez
+        # RLock: serializa la edición entre hilos y permite que el reintento
+        # (mismo hilo) re-entre sin auto-bloquearse.
+        self._session_lock = threading.RLock()
         self._seq_lock = threading.Lock()
         self._seq = 0
         self._worker: Optional[threading.Thread] = None
@@ -88,6 +91,8 @@ class EditQueue:
                     self._idle.set()
 
     def _process(self, batch_id: str) -> None:
+        from app.core.config import settings
+
         # El lock serializa la sesión de edición contra la geodatabase.
         with self._session_lock:
             db = database.SessionLocal()
@@ -96,26 +101,43 @@ class EditQueue:
                 if not batch or batch.status != BatchStatus.QUEUED.value:
                     return
                 batch.status = BatchStatus.PROCESSING.value
+                batch.attempts = (batch.attempts or 0) + 1
+                attempt = batch.attempts
                 db.commit()
 
-                editor = (self._editor_factory or _fallback_factory)()
-                editor.begin_session(batch.un_code)
-                for el in sorted(batch.elements, key=lambda e: e.created_at):
-                    editor.apply(el.operation, el)
-                editor.commit()
+                try:
+                    editor = (self._editor_factory or _fallback_factory)()
+                    editor.begin_session(batch.un_code)
+                    for el in sorted(batch.elements, key=lambda e: e.created_at):
+                        editor.apply(el.operation, el)
+                    editor.commit()
+                except Exception as exc:  # noqa: BLE001
+                    self._handle_failure(db, batch_id, attempt, str(exc), settings)
+                    return
 
+                batch = db.get(GISStagingBatch, batch_id)
                 batch.status = BatchStatus.LOADED.value
                 batch.error = None
                 db.commit()
-            except Exception as exc:  # noqa: BLE001 — se persiste el motivo
-                db.rollback()
-                failed = db.get(GISStagingBatch, batch_id)
-                if failed:
-                    failed.status = BatchStatus.FAILED.value
-                    failed.error = str(exc)[:500]
-                    db.commit()
             finally:
                 db.close()
+
+    def _handle_failure(self, db, batch_id, attempt, message, settings) -> None:
+        """Reintento automático con backoff; FAILED tras agotar los intentos."""
+        db.rollback()
+        batch = db.get(GISStagingBatch, batch_id)
+        if not batch:
+            return
+        if attempt < settings.GIS_EDIT_MAX_RETRIES:
+            batch.status = BatchStatus.QUEUED.value  # reencolar
+            batch.error = f"Intento {attempt} falló: {message[:300]}"
+            db.commit()
+            time.sleep(settings.GIS_EDIT_RETRY_BACKOFF_SECONDS)
+            self._process(batch_id)  # reintento (mismo hilo, dentro del lock)
+        else:
+            batch.status = BatchStatus.FAILED.value
+            batch.error = f"Falló tras {attempt} intentos: {message[:300]}"
+            db.commit()
 
 
 def _fallback_factory() -> object:

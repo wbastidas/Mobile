@@ -135,8 +135,15 @@ function BatchDrawer({
     onSuccess: onDecided,
     onError: (e) => setError(errorMessage(e)),
   });
+  const retry = useMutation({
+    mutationFn: () => gisApi.retry(batchId),
+    onSuccess: onDecided,
+    onError: (e) => setError(errorMessage(e)),
+  });
 
-  const decidable = batch.data?.status === "PENDING_REVIEW" || batch.data?.status === "FAILED";
+  const isPending = batch.data?.status === "PENDING_REVIEW";
+  const isFailed = batch.data?.status === "FAILED";
+  const decidable = isPending || isFailed;
 
   return (
     <div
@@ -171,12 +178,24 @@ function BatchDrawer({
 
             {canDecide && decidable && (
               <div className="row" style={{ marginBottom: "1.25rem" }}>
-                <button className="btn" disabled={approve.isPending} onClick={() => approve.mutate()}>
-                  Aprobar y cargar
-                </button>
+                {isPending && (
+                  <button className="btn" disabled={approve.isPending} onClick={() => approve.mutate()}>
+                    Aprobar y cargar
+                  </button>
+                )}
+                {isFailed && (
+                  <button className="btn" disabled={retry.isPending} onClick={() => retry.mutate()}>
+                    Reintentar carga
+                  </button>
+                )}
                 <button className="btn danger" disabled={rollback.isPending} onClick={() => rollback.mutate()}>
                   Revertir
                 </button>
+              </div>
+            )}
+            {batch.data!.error && (
+              <div className="error" style={{ marginBottom: "1rem" }}>
+                {batch.data!.error}
               </div>
             )}
 

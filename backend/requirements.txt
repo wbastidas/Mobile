@@ -13,10 +13,15 @@ email-validator>=2.1
 openpyxl>=3.1
 reportlab>=4.0
 
+# Migraciones de base de datos
+alembic>=1.13
+
 # Producción (PostgreSQL/PostGIS) — descomentar según despliegue:
 # psycopg[binary]>=3.1
-# alembic>=1.13
 # GeoAlchemy2>=0.14
+# Editor físico GIS (según GIS_EDITOR; PD-02):
+# oracledb>=2.0        # editor "oracle"
+# (arcpy se provee con la instalación de ArcGIS, no vía pip)
 
 # Desarrollo / pruebas
 pytest>=8.0

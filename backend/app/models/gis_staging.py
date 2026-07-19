@@ -28,6 +28,8 @@ class GISStagingBatch(UUIDPk, Timestamps, Base):
 
     # Orden de encolado para procesamiento FIFO (una edición a la vez).
     queue_seq: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    # Número de intentos de carga (para reintento automático con backoff).
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
 
     # Quién decidió (aprobó/revirtió) y cuándo (updated_at del mixin).
     decided_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id"), nullable=True)

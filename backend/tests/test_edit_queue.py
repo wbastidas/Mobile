@@ -20,8 +20,11 @@ from app.models.gis_staging import GISStagingBatch, GISStagingElement
 def _async_queue():
     """Estas pruebas ejercen el worker real, no el modo síncrono."""
     settings.GIS_EDIT_QUEUE_SYNC = False
+    old_backoff = settings.GIS_EDIT_RETRY_BACKOFF_SECONDS
+    settings.GIS_EDIT_RETRY_BACKOFF_SECONDS = 0.0  # sin espera en pruebas
     yield
     settings.GIS_EDIT_QUEUE_SYNC = True
+    settings.GIS_EDIT_RETRY_BACKOFF_SECONDS = old_backoff
 
 
 def _make_batch(db, un_code: str, guid: str) -> str:
@@ -73,7 +76,7 @@ def test_batches_processed_one_at_a_time_and_in_order(db_session):
     assert len(StubEditor.applied) == len(batch_ids)
 
 
-def test_editor_failure_marks_batch_failed(db_session):
+def test_permanent_failure_marks_batch_failed_after_max_retries(db_session):
     StubEditor.reset()
     db = db_session()
     db.add(BusinessUnit(code="UN-Y", name="Y"))
@@ -97,6 +100,42 @@ def test_editor_failure_marks_batch_failed(db_session):
     try:
         batch = check.get(GISStagingBatch, batch_id)
         assert batch.status == BatchStatus.FAILED.value
+        assert batch.attempts == settings.GIS_EDIT_MAX_RETRIES  # agotó los reintentos
         assert "fallo simulado" in (batch.error or "")
+    finally:
+        check.close()
+
+
+def test_auto_retry_recovers(db_session):
+    """El editor falla las primeras veces y luego funciona: el lote termina LOADED."""
+    StubEditor.reset()
+    db = db_session()
+    db.add(BusinessUnit(code="UN-Z", name="Z"))
+    db.commit()
+    batch_id = _make_batch(db, "UN-Z", "G-FLAKY")
+    db.close()
+
+    calls = {"n": 0}
+
+    class FlakyEditor(StubEditor):
+        def apply(self, operation, element):
+            calls["n"] += 1
+            if calls["n"] < 3:  # falla en los intentos 1 y 2
+                raise RuntimeError("fallo transitorio")
+            super().apply(operation, element)
+
+    q = EditQueue(editor_factory=lambda: FlakyEditor())
+    q.start()
+    try:
+        q.submit(batch_id)
+        assert q.wait_idle(timeout=10)
+    finally:
+        q.stop()
+
+    check = db_session()
+    try:
+        batch = check.get(GISStagingBatch, batch_id)
+        assert batch.status == BatchStatus.LOADED.value
+        assert batch.attempts == 3
     finally:
         check.close()

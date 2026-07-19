@@ -25,9 +25,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.empresa.levantamiento.core.model.ElementRecord
+import com.empresa.levantamiento.core.schema.FieldType
 import com.empresa.levantamiento.ui.capture.rememberPhotoCapture
 
 /**
@@ -100,9 +103,15 @@ fun AttributePane(vm: WorkDetailViewModel, state: WorkDetailState) {
 
 @Composable
 private fun CaptureForm(vm: WorkDetailViewModel, element: ElementRecord) {
-    // Editor dinámico de atributos (en producción se genera desde el esquema, §6.4).
+    // Campos generados desde el esquema versionado (§6.4); si no hay esquema para
+    // el tipo, se cae al editor dinámico de atributos.
+    val schemaFields = remember(element.guid) { vm.schemaFields(element.elementType) }
     var attributes by remember(element.guid) {
-        mutableStateOf(element.attributes.ifEmpty { mapOf("material" to "", "altura_m" to "") })
+        mutableStateOf(
+            if (schemaFields.isNotEmpty())
+                schemaFields.associate { it.name to (element.attributes[it.name] ?: "") }
+            else element.attributes.ifEmpty { mapOf("material" to "", "altura_m" to "") }
+        )
     }
     var observations by remember(element.guid) { mutableStateOf("") }
     var newKey by remember(element.guid) { mutableStateOf("") }
@@ -118,31 +127,48 @@ private fun CaptureForm(vm: WorkDetailViewModel, element: ElementRecord) {
         Text("GUID: ${element.guid}", style = MaterialTheme.typography.labelLarge)
         element.parentGuid?.let { Text("Padre (puesto/unidad): $it") }
 
-        attributes.forEach { (key, value) ->
-            OutlinedTextField(
-                value = value ?: "",
-                onValueChange = { attributes = attributes.toMutableMap().apply { put(key, it) } },
-                label = { Text(key) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
-        }
-
-        // Agregar un campo atributivo adicional.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = newKey, onValueChange = { newKey = it },
-                label = { Text("Nuevo campo") }, modifier = Modifier.weight(1f), singleLine = true,
-            )
-            OutlinedButton(
-                onClick = {
-                    if (newKey.isNotBlank()) {
-                        attributes = attributes + (newKey to "")
-                        newKey = ""
-                    }
-                },
-                modifier = Modifier.padding(start = 8.dp),
-            ) { Text("+") }
+        if (schemaFields.isNotEmpty()) {
+            // Formulario dirigido por el esquema: tipo de teclado según el campo,
+            // y dominios sugeridos como texto de apoyo.
+            schemaFields.forEach { field ->
+                OutlinedTextField(
+                    value = attributes[field.name] ?: "",
+                    onValueChange = { attributes = attributes.toMutableMap().apply { put(field.name, it) } },
+                    label = { Text(field.name) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = if (field.type == FieldType.NUMBER)
+                        KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
+                    supportingText = if (field.type == FieldType.DOMAIN && field.domain.isNotEmpty())
+                        { { Text("Valores: ${field.domain.joinToString(", ")}") } } else null,
+                )
+            }
+        } else {
+            attributes.forEach { (key, value) ->
+                OutlinedTextField(
+                    value = value ?: "",
+                    onValueChange = { attributes = attributes.toMutableMap().apply { put(key, it) } },
+                    label = { Text(key) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
+            // Agregar un campo atributivo adicional (solo en modo sin esquema).
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = newKey, onValueChange = { newKey = it },
+                    label = { Text("Nuevo campo") }, modifier = Modifier.weight(1f), singleLine = true,
+                )
+                OutlinedButton(
+                    onClick = {
+                        if (newKey.isNotBlank()) {
+                            attributes = attributes + (newKey to "")
+                            newKey = ""
+                        }
+                    },
+                    modifier = Modifier.padding(start = 8.dp),
+                ) { Text("+") }
+            }
         }
 
         OutlinedTextField(

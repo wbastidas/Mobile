@@ -47,7 +47,7 @@ def list_batches(status_filter: str | None = None,
     return [
         {"id": b.id, "un_code": b.un_code, "work_id": b.work_id, "status": b.status,
          "element_count": b.element_count, "message": b.message, "error": b.error,
-         "queue_seq": b.queue_seq, "created_at": b.created_at}
+         "queue_seq": b.queue_seq, "attempts": b.attempts, "created_at": b.created_at}
         for b in q.order_by(GISStagingBatch.created_at.desc()).limit(500).all()
     ]
 
@@ -96,6 +96,30 @@ def approve_batch(batch_id: str, request: Request, db: Session = Depends(get_db)
     db.refresh(batch)
     return {"id": batch.id, "status": batch.status, "queue_seq": batch.queue_seq,
             "detail": "Lote aprobado y encolado para carga a la geodatabase corporativa."}
+
+
+@router.post("/staging/{batch_id}/retry")
+def retry_batch(batch_id: str, request: Request, db: Session = Depends(get_db),
+                user: User = Depends(require_operator)):
+    """Reencola manualmente un lote FAILED para volver a intentar la carga."""
+    batch = _get_batch_scoped(db, user, batch_id)
+    if batch.status != BatchStatus.FAILED.value:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"Solo un lote FAILED puede reintentarse (está {batch.status}).")
+    batch.status = BatchStatus.QUEUED.value
+    batch.queue_seq = edit_queue.next_seq()
+    batch.attempts = 0
+    batch.error = None
+    batch.decided_by_id = user.id
+    audit.record(db, action=AuditAction.CONSOLIDATE.value, actor=user,
+                 entity_type="GISStagingBatch", entity_id=batch.id,
+                 new_values={"status": batch.status, "retry": True},
+                 ip_address=client_ip(request))
+    db.commit()
+    edit_queue.submit(batch.id)
+    db.refresh(batch)
+    return {"id": batch.id, "status": batch.status,
+            "detail": "Lote reencolado para reintento de carga."}
 
 
 @router.post("/staging/{batch_id}/rollback")

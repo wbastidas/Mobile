@@ -19,6 +19,10 @@ android {
 
         // URL base del backend; sobreescribible por variante/entorno.
         buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000/api/v1/\"")
+        // Certificate pinning (RF-SYNC.1): vacío = deshabilitado. En release se
+        // define el host y el pin SHA-256 de la clave pública del servidor.
+        buildConfigField("String", "CERT_PIN_HOST", "\"\"")
+        buildConfigField("String", "CERT_PIN_SHA256", "\"\"")
     }
 
     buildTypes {

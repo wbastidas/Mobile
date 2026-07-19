@@ -66,6 +66,14 @@ def test_approve_batch_enqueues_and_loads(client, seeded):
     assert any(a["entity_id"] == batch_id for a in audit_rows)
 
 
+def test_retry_only_allowed_on_failed(client, seeded):
+    admin, _ = _sync_a_work(client)
+    batch_id = client.get("/api/v1/gis/staging", headers=admin).json()[0]["id"]
+    client.post(f"/api/v1/gis/staging/{batch_id}/approve", headers=admin)  # -> LOADED
+    r = client.post(f"/api/v1/gis/staging/{batch_id}/retry", headers=admin)
+    assert r.status_code == 409  # un lote cargado no se reintenta
+
+
 def test_rollback_batch(client, seeded):
     admin, _ = _sync_a_work(client)
     batch_id = client.get("/api/v1/gis/staging", headers=admin).json()[0]["id"]

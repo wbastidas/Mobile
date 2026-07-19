@@ -2,8 +2,13 @@ package com.empresa.levantamiento.ui.workdetail
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.empresa.levantamiento.core.geo.GeoJson
 import com.empresa.levantamiento.core.model.ElementRecord
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -25,15 +30,36 @@ fun OsmMap(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    // Instancia única del MapView, ligada al ciclo de vida (evita fugas y
+    // consumo de batería con el mapa en background).
+    val mapView = remember {
+        MapView(context).apply {
+            setTileSource(TileSourceFactory.MAPNIK)
+            setMultiTouchControls(true)
+            controller.setZoom(16.0)
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            mapView.onDetach() // libera overlays/tiles
+        }
+    }
+
     AndroidView(
         modifier = modifier,
-        factory = { context ->
-            MapView(context).apply {
-                setTileSource(TileSourceFactory.MAPNIK)
-                setMultiTouchControls(true)
-                controller.setZoom(16.0)
-            }
-        },
+        factory = { mapView },
         update = { map ->
             map.overlays.clear()
 
@@ -70,7 +96,4 @@ fun OsmMap(
             map.invalidate()
         },
     )
-
-    // osmdroid necesita ciclo de vida; en un fragmento real se llamaría onResume/onPause.
-    DisposableEffect(Unit) { onDispose { } }
 }

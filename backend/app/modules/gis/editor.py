@@ -76,8 +76,17 @@ class StubEditor(GeodatabaseEditor):
 
 
 def default_editor_factory() -> GeodatabaseEditor:
+    """Selecciona el editor físico según la configuración (PD-02).
+
+    El editor real (Oracle/ArcPy) se activa por variable de entorno; por defecto
+    se usa el stub, para no exigir Oracle/ArcGIS en entornos donde no aplican.
+    """
     from app.core.config import settings
+
+    if settings.GIS_EDITOR == "oracle":
+        from app.modules.gis.editors_real import OracleSdeEditor
+        return OracleSdeEditor(settings.ORACLE_DSN, settings.ORACLE_USER, settings.ORACLE_PASSWORD)
     if settings.GIS_EDITOR == "arcpy":
-        # Punto de enganche del editor real (PD-02). Ver docs/INTEGRACION_ARCSDE.md.
-        raise NotImplementedError("Editor ArcPy/Oracle pendiente de PD-02.")
+        from app.modules.gis.editors_real import ArcPyEditor
+        return ArcPyEditor(settings.ARCPY_WORKSPACE)
     return StubEditor()

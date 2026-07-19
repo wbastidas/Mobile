@@ -67,6 +67,12 @@ class WorkDetailViewModel(private val workId: String) : ViewModel() {
         select(record.guid)
     }
 
+    /** Campos de captura derivados del esquema vigente para un tipo (§6.4). */
+    fun schemaFields(elementType: String) =
+        com.empresa.levantamiento.core.schema.SchemaFields.fieldsFor(
+            ServiceLocator.params.schemaDefinitionJson, elementType
+        )
+
     /** Marca un elemento para eliminación; se consolidará como DELETE (§7). */
     fun markDeleted(element: ElementRecord) {
         repo.saveElement(workId, element.copy(deleted = true), observations = null, completed = true)

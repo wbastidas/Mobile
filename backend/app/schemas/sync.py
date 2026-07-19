@@ -56,3 +56,4 @@ class PullResponse(BaseModel):
     quality_params_version: Optional[int]
     quality_params_rules: Optional[Any]
     schema_version: Optional[int]
+    schema_definition: Optional[Any] = None  # capas/campos para generar formularios (§6.4)

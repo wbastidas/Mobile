@@ -18,6 +18,7 @@ from app.core.security import (
 from app.models.device import Device
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
+from app.modules.corporate_auth import get_corporate_authenticator
 from app.schemas.auth import (
     CurrentUser,
     LoginRequest,
@@ -79,13 +80,25 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     _check_lock(user)
 
     if user.auth_type == AuthType.CORPORATE:
-        # RF-WEB-01.1 / PD-05: delegar a AD/LDAP/SSO. Placeholder configurable.
-        if not settings.CORPORATE_AUTH_ENABLED:
+        # RF-WEB-01.1 / PD-05: delegar a AD/LDAP/SSO tras la interfaz aislada.
+        authenticator = get_corporate_authenticator()
+        if not authenticator.enabled:
             raise HTTPException(
                 status.HTTP_501_NOT_IMPLEMENTED,
                 "Autenticación corporativa no configurada (PD-05).",
             )
-        raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Delegación corporativa pendiente.")
+        result = authenticator.authenticate(payload.username, payload.password)
+        if not result.ok:
+            _register_failure(db, user, request)
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Usuario o contraseña inválidos.")
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        user.last_login_at = datetime.now(timezone.utc)
+        audit.record(db, action=AuditAction.LOGIN.value, actor=user, entity_type="User",
+                     entity_id=user.id, ip_address=client_ip(request))
+        tokens = _issue_tokens(db, user)
+        db.commit()
+        return tokens
 
     if not user.hashed_password or not verify_password(payload.password, user.hashed_password):
         _register_failure(db, user, request)

@@ -21,4 +21,9 @@ class ParamsStore(context: Context) {
     var schemaVersion: Int
         get() = prefs.getInt("schema_version", 1)
         set(v) = prefs.edit().putInt("schema_version", v).apply()
+
+    /** Definición de esquema (capas/campos) para generar formularios (§6.4). */
+    var schemaDefinitionJson: String?
+        get() = prefs.getString("schema_definition", null)
+        set(v) = prefs.edit().putString("schema_definition", v).apply()
 }

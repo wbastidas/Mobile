@@ -140,6 +140,7 @@ def pull(device_uid: str, db: Session = Depends(get_db), user: User = Depends(_f
         quality_params_version=qp.version if qp else None,
         quality_params_rules=json.loads(qp.rules_json) if qp else None,
         schema_version=schema.version if schema else None,
+        schema_definition=json.loads(schema.definition_json) if schema else None,
     )
 
 

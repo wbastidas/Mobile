@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     # Placeholders; el mecanismo real (LDAP/SAML/OIDC) se define en PD-05.
     CORPORATE_AUTH_ENABLED: bool = False
     LDAP_SERVER_URI: str = ""
+    LDAP_USER_DN_TEMPLATE: str = "{username}"
 
     # --- CORS ---
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
@@ -58,8 +59,17 @@ class Settings(BaseSettings):
     # paralelo (una sesión de edición SDE bloquea la versión).
     # Si es True, la aprobación procesa en línea (útil en pruebas deterministas).
     GIS_EDIT_QUEUE_SYNC: bool = False
-    # Editor físico: "stub" (simulado) | "arcpy" (Python→SDE/Oracle, PD-02).
+    # Editor físico: "stub" | "oracle" (python-oracledb) | "arcpy" (ArcGIS). PD-02.
     GIS_EDITOR: str = "stub"
+    # Conexión Oracle (editor "oracle").
+    ORACLE_DSN: str = ""
+    ORACLE_USER: str = ""
+    ORACLE_PASSWORD: str = ""
+    # Workspace .sde (editor "arcpy").
+    ARCPY_WORKSPACE: str = ""
+    # Reintentos automáticos de un lote antes de marcarlo FAILED de forma definitiva.
+    GIS_EDIT_MAX_RETRIES: int = 3
+    GIS_EDIT_RETRY_BACKOFF_SECONDS: float = 0.5
 
 
 @lru_cache
