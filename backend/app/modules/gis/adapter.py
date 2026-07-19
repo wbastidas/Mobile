@@ -22,6 +22,7 @@ class ExtractedElement:
     geometry_geojson: Optional[str]
     attributes: Dict[str, Any] = field(default_factory=dict)
     parent_guid: Optional[str] = None
+    operation: str = "UPDATE"  # CREATE | UPDATE | DELETE
 
 
 @dataclass

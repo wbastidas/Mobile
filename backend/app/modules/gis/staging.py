@@ -40,6 +40,7 @@ class StagingGISAdapter(StubGISAdapter):
         for e in elements:
             db.add(GISStagingElement(
                 batch_id=batch.id,
+                operation=e.operation,
                 guid=e.guid,
                 element_type=e.element_type,
                 parent_guid=e.parent_guid,

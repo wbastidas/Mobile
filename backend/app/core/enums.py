@@ -56,6 +56,23 @@ class ValidationResult(str, enum.Enum):
     NOT_RUN = "NOT_RUN"
 
 
+class ElementOperation(str, enum.Enum):
+    """Tipo de edición sobre un elemento en la geodatabase (§6, §7)."""
+    CREATE = "CREATE"   # elemento nuevo capturado en campo
+    UPDATE = "UPDATE"   # elemento existente modificado
+    DELETE = "DELETE"   # elemento marcado para eliminación
+
+
+class BatchStatus(str, enum.Enum):
+    """Ciclo de vida de un lote de consolidación hacia ArcSDE/Oracle (§7.4)."""
+    PENDING_REVIEW = "PENDING_REVIEW"  # esperando revisión del operador
+    QUEUED = "QUEUED"                  # aprobado, en cola de edición
+    PROCESSING = "PROCESSING"          # el worker lo está cargando
+    LOADED = "LOADED"                  # cargado en la geodatabase
+    FAILED = "FAILED"                  # falló la carga; puede reencolarse
+    ROLLED_BACK = "ROLLED_BACK"        # revertido antes de cargar
+
+
 class AuditAction(str, enum.Enum):
     CREATE = "CREATE"
     UPDATE = "UPDATE"

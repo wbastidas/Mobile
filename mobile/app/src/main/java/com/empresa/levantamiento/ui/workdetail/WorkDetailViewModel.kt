@@ -67,6 +67,14 @@ class WorkDetailViewModel(private val workId: String) : ViewModel() {
         select(record.guid)
     }
 
+    /** Marca un elemento para eliminación; se consolidará como DELETE (§7). */
+    fun markDeleted(element: ElementRecord) {
+        repo.saveElement(workId, element.copy(deleted = true), observations = null, completed = true)
+        reload()
+        select(null)
+        _state.value = _state.value.copy(message = "Elemento marcado para eliminación.")
+    }
+
     fun saveElement(
         element: ElementRecord,
         attributes: Map<String, String?>,

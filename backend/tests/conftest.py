@@ -21,6 +21,17 @@ def _reset_rate_limiter():
     login_limiter.reset()
 
 
+@pytest.fixture(autouse=True)
+def _sync_edit_queue():
+    """Procesa la cola de edición en línea (determinista) durante las pruebas."""
+    from app.core.config import settings
+    from app.modules.gis.editor import StubEditor
+    settings.GIS_EDIT_QUEUE_SYNC = True
+    StubEditor.reset()
+    yield
+    StubEditor.reset()
+
+
 @pytest.fixture()
 def db_session():
     fd, path = tempfile.mkstemp(suffix=".db")

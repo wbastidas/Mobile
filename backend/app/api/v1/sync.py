@@ -20,6 +20,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.enums import (
     AuditAction,
+    ElementOperation,
     RemoteDeleteStatus,
     Role,
     ValidationResult,
@@ -28,6 +29,7 @@ from app.core.enums import (
 from app.models.device import Device
 from app.models.element import Element, WorkElement
 from app.models.element_log import ElementLog
+from app.models.field_change import FieldChange
 from app.models.quality_novelty import QualityNovelty
 from app.models.quality_params import QualityParamSet, SchemaDefinition
 from app.models.sync import Photo, RemoteDeleteOrder, SyncPackage
@@ -292,23 +294,59 @@ def verify(package_id: str, db: Session = Depends(get_db), user: User = Depends(
             continue
         entity = db.query(Element).filter(Element.guid == guid).first()
         attrs = el.get("attributes") or {}
-        if not entity:
+        attrs_json = json.dumps(attrs, ensure_ascii=False)
+
+        # La operación de campo la determinan los flags del móvil, no si el
+        # espejo local ya existe: un elemento del sector se EDITA (UPDATE) aunque
+        # sea la primera vez que se materializa como fila `Element`.
+        if bool(el.get("deleted")):
+            operation = ElementOperation.DELETE
+        elif bool(el.get("is_new")):
+            operation = ElementOperation.CREATE
+        else:
+            operation = ElementOperation.UPDATE
+
+        before = entity.attributes_json if entity else None
+
+        if operation == ElementOperation.DELETE:
+            if entity:
+                entity.deleted = True  # baja lógica; el editor la aplica en la GDB
+            element_type = entity.element_type if entity else el.get("element_type", "DESCONOCIDO")
+        elif entity is None:
             entity = Element(guid=guid, element_type=el.get("element_type", "DESCONOCIDO"),
                              un_id=work.un_id, parent_guid=el.get("parent_guid"),
                              geometry_geojson=el.get("geometry_geojson"),
-                             attributes_json=json.dumps(attrs, ensure_ascii=False),
-                             is_new=bool(el.get("is_new")))
+                             attributes_json=attrs_json,
+                             is_new=(operation == ElementOperation.CREATE))
             db.add(entity)
             db.flush()
+            element_type = entity.element_type
         else:
             entity.geometry_geojson = el.get("geometry_geojson", entity.geometry_geojson)
-            entity.attributes_json = json.dumps(attrs, ensure_ascii=False)
-        db.add(ElementLog(element_id=entity.id, element_guid=guid, event_type="SYNC",
-                          detail=f"Sincronizado en trabajo {work.code}", work_id=work.id,
-                          user_id=user.id, device_id=device.id))
-        extracted.append(ExtractedElement(guid=guid, element_type=entity.element_type,
-                                          geometry_geojson=entity.geometry_geojson,
-                                          attributes=attrs, parent_guid=entity.parent_guid))
+            entity.attributes_json = attrs_json
+            element_type = entity.element_type
+
+        # Bitácora por elemento (RF-WEB-07) con el tipo de operación.
+        if entity:
+            db.add(ElementLog(element_id=entity.id, element_guid=guid, event_type=operation.value,
+                              detail=f"{operation.value} en trabajo {work.code}", work_id=work.id,
+                              user_id=user.id, device_id=device.id))
+
+        # Histórico de cambios por usuario y por trabajo.
+        db.add(FieldChange(
+            user_id=user.id, username=user.username, device_id=device.id,
+            work_id=work.id, work_code=work.code, un_id=work.un_id,
+            element_guid=guid, element_type=element_type, operation=operation.value,
+            attributes_before=before,
+            attributes_after=(None if operation == ElementOperation.DELETE else attrs_json),
+        ))
+
+        extracted.append(ExtractedElement(
+            guid=guid, element_type=element_type,
+            geometry_geojson=el.get("geometry_geojson"),
+            attributes=attrs, parent_guid=el.get("parent_guid"),
+            operation=operation.value,
+        ))
 
     # Consolidación hacia ArcSDE/Oracle mediante el adaptador aislado (§7.2, RN-11).
     # Con el adaptador de staging, esto crea un lote reversible en revisión.

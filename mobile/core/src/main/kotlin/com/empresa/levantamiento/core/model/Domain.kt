@@ -27,6 +27,8 @@ data class ElementRecord(
     val geometryGeoJson: String? = null,
     val photoCount: Int = 0,
     val isNew: Boolean = false,
+    /** Marcado para eliminación en campo; se consolida como DELETE (§7). */
+    val deleted: Boolean = false,
 )
 
 /** Metadata obligatoria de una foto (RN-08). */

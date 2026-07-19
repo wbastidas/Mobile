@@ -40,6 +40,12 @@ export default function Layout() {
               Parámetros de calidad
             </NavLink>
           )}
+          <NavLink to="/consolidation" className="nav-link">
+            Consolidación
+          </NavLink>
+          <NavLink to="/history" className="nav-link">
+            Historial de campo
+          </NavLink>
           <NavLink to="/reports" className="nav-link">
             Reportes
           </NavLink>

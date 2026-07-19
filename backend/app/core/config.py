@@ -53,6 +53,14 @@ class Settings(BaseSettings):
     # "stub": simulado, solo para pruebas unitarias aisladas.
     GIS_ADAPTER: str = "staging"
 
+    # Cola de edición hacia la geodatabase. La carga corporativa (Python/ArcPy)
+    # se hace UNA A LA VEZ: varios lotes aprobados se procesan en FIFO, nunca en
+    # paralelo (una sesión de edición SDE bloquea la versión).
+    # Si es True, la aprobación procesa en línea (útil en pruebas deterministas).
+    GIS_EDIT_QUEUE_SYNC: bool = False
+    # Editor físico: "stub" (simulado) | "arcpy" (Python→SDE/Oracle, PD-02).
+    GIS_EDITOR: str = "stub"
+
 
 @lru_cache
 def get_settings() -> Settings:

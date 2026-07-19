@@ -46,15 +46,17 @@ def test_sync_creates_pending_staging_batch(client, seeded):
     assert "HORMIGON" in detail["elements"][0]["attributes_json"]
 
 
-def test_approve_batch_marks_loaded_and_audits(client, seeded):
+def test_approve_batch_enqueues_and_loads(client, seeded):
     admin, _ = _sync_a_work(client)
     batch_id = client.get("/api/v1/gis/staging", headers=admin).json()[0]["id"]
 
+    # En pruebas la cola procesa en línea: aprobar deja el lote LOADED.
     r = client.post(f"/api/v1/gis/staging/{batch_id}/approve", headers=admin)
     assert r.status_code == 200
-    assert r.json()["status"] == "LOADED"
+    detail = client.get(f"/api/v1/gis/staging/{batch_id}", headers=admin).json()
+    assert detail["status"] == "LOADED"
 
-    # No puede aprobarse dos veces.
+    # Un lote ya cargado no puede reaprobarse.
     r = client.post(f"/api/v1/gis/staging/{batch_id}/approve", headers=admin)
     assert r.status_code == 409
 

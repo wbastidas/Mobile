@@ -114,6 +114,7 @@ class SyncManager(
                         put("geometry_geojson", el.geometryGeoJson)
                         put("parent_guid", el.parentGuid)
                         put("is_new", el.isNew)
+                        put("deleted", el.deleted)  // consolida como DELETE (§7)
                         put("attributes", buildJsonObject {
                             el.attributes.forEach { (k, v) -> put(k, v) }
                         })

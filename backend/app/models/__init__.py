@@ -4,6 +4,7 @@ from app.models.business_unit import BusinessUnit
 from app.models.device import Device
 from app.models.element import Element, WorkElement
 from app.models.element_log import ElementLog
+from app.models.field_change import FieldChange
 from app.models.gis_staging import GISStagingBatch, GISStagingElement
 from app.models.quality_novelty import QualityNovelty
 from app.models.refresh_token import RefreshToken
@@ -19,6 +20,7 @@ __all__ = [
     "Element",
     "WorkElement",
     "ElementLog",
+    "FieldChange",
     "GISStagingBatch",
     "GISStagingElement",
     "QualityNovelty",

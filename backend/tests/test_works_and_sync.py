@@ -124,10 +124,10 @@ def test_full_sync_flow(client, seeded):
     assert r.json()["verified"] is True
     assert r.json()["status"] == "COMPLETED"
 
-    # La bitácora del elemento registra la sincronización (RF-WEB-07).
+    # La bitácora del elemento registra la operación de campo (RF-WEB-07).
     r = client.get("/api/v1/elements/UN-NORTE-POSTE-0001/log", headers=admin)
     assert r.status_code == 200
-    assert any(e["event_type"] == "SYNC" for e in r.json())
+    assert any(e["event_type"] in ("UPDATE", "CREATE") for e in r.json())
 
 
 def test_photo_chunk_upload_completes_sync(client, seeded, tmp_path):

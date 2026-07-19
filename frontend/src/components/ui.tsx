@@ -39,6 +39,29 @@ export function typeLabel(t: string): string {
   return TYPE_LABEL[t] ?? t;
 }
 
+const BATCH_STYLE: Record<string, { cls: string; label: string }> = {
+  PENDING_REVIEW: { cls: "gray", label: "En revisión" },
+  QUEUED: { cls: "blue", label: "En cola" },
+  PROCESSING: { cls: "amber", label: "Procesando" },
+  LOADED: { cls: "green", label: "Cargado" },
+  FAILED: { cls: "red", label: "Falló" },
+  ROLLED_BACK: { cls: "gray", label: "Revertido" },
+};
+export function BatchStatusBadge({ status }: { status: string }) {
+  const s = BATCH_STYLE[status] ?? { cls: "gray", label: status };
+  return <span className={`badge ${s.cls}`}>{s.label}</span>;
+}
+
+const OP_STYLE: Record<string, { cls: string; label: string }> = {
+  CREATE: { cls: "green", label: "Crear" },
+  UPDATE: { cls: "blue", label: "Modificar" },
+  DELETE: { cls: "red", label: "Eliminar" },
+};
+export function OperationBadge({ operation }: { operation: string }) {
+  const s = OP_STYLE[operation] ?? { cls: "gray", label: operation };
+  return <span className={`badge ${s.cls}`}>{s.label}</span>;
+}
+
 export function Loading() {
   return (
     <div className="loading" role="status" aria-live="polite">

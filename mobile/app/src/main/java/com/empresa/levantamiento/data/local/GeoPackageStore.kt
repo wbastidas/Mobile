@@ -53,7 +53,7 @@ class GeoPackageStore(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
                  attributes_json TEXT, geometry_geojson TEXT, parent_guid TEXT,
                  observations TEXT, photo_count INTEGER DEFAULT 0,
                  is_new INTEGER DEFAULT 0, completed INTEGER DEFAULT 0,
-                 dirty INTEGER DEFAULT 0,
+                 dirty INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0,
                  FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE)"""
         )
         db.execSQL("CREATE INDEX idx_elements_work ON elements(work_id)")
@@ -121,12 +121,12 @@ class GeoPackageStore(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
             put("geometry_geojson", e.geometryGeoJson); put("parent_guid", e.parentGuid)
             put("observations", observations); put("photo_count", e.photoCount)
             put("is_new", if (e.isNew) 1 else 0); put("completed", if (completed) 1 else 0)
-            put("dirty", if (dirty) 1 else 0)
+            put("dirty", if (dirty) 1 else 0); put("deleted", if (e.deleted) 1 else 0)
         }, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
     fun getElements(workId: String): List<ElementRecord> = readableDatabase.rawQuery(
-        "SELECT guid,element_type,attributes_json,geometry_geojson,parent_guid,photo_count,is_new FROM elements WHERE work_id=?",
+        "SELECT guid,element_type,attributes_json,geometry_geojson,parent_guid,photo_count,is_new,deleted FROM elements WHERE work_id=?",
         arrayOf(workId)
     ).use { c ->
         buildList {
@@ -136,6 +136,7 @@ class GeoPackageStore(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
                     attributes = attributesFromJson(c.getStringOrNull(2)),
                     geometryGeoJson = c.getStringOrNull(3), parentGuid = c.getStringOrNull(4),
                     photoCount = c.getInt(5), isNew = c.getInt(6) == 1,
+                    deleted = c.getInt(7) == 1,
                 )
             )
         }

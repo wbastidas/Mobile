@@ -20,10 +20,14 @@ class GISStagingBatch(UUIDPk, Timestamps, Base):
     un_code: Mapped[str] = mapped_column(String(32), index=True)
     work_id: Mapped[Optional[str]] = mapped_column(ForeignKey("works.id"), nullable=True, index=True)
 
-    # PENDING_REVIEW -> LOADED (aprobado y cargado) | ROLLED_BACK (revertido)
+    # PENDING_REVIEW -> QUEUED -> PROCESSING -> LOADED | FAILED | ROLLED_BACK
     status: Mapped[str] = mapped_column(String(24), default="PENDING_REVIEW", index=True)
     element_count: Mapped[int] = mapped_column(Integer, default=0)
     message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # motivo si FAILED
+
+    # Orden de encolado para procesamiento FIFO (una edición a la vez).
+    queue_seq: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
 
     # Quién decidió (aprobó/revirtió) y cuándo (updated_at del mixin).
     decided_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id"), nullable=True)
@@ -36,6 +40,9 @@ class GISStagingElement(UUIDPk, Timestamps, Base):
     __tablename__ = "gis_staging_elements"
 
     batch_id: Mapped[str] = mapped_column(ForeignKey("gis_staging_batches.id"), index=True)
+
+    # Operación a aplicar en la geodatabase: CREATE | UPDATE | DELETE.
+    operation: Mapped[str] = mapped_column(String(8), default="UPDATE")
 
     # Preservación de GUID y relación puesto/unidad (§7.2, RN-06/07).
     guid: Mapped[str] = mapped_column(String(64), index=True)

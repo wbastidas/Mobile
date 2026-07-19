@@ -62,6 +62,23 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
+    # Cola de edición hacia la geodatabase: un único worker por proceso que
+    # procesa los lotes aprobados de a uno (§7.2). En modo síncrono no se
+    # arranca el hilo (la aprobación procesa en línea).
+    from app.modules.gis.edit_queue import edit_queue
+    from app.modules.gis.editor import default_editor_factory
+    edit_queue.configure(default_editor_factory)
+
+    @app.on_event("startup")
+    def _start_edit_queue():
+        if not settings.GIS_EDIT_QUEUE_SYNC:
+            edit_queue.start()
+
+    @app.on_event("shutdown")
+    def _stop_edit_queue():
+        if not settings.GIS_EDIT_QUEUE_SYNC:
+            edit_queue.stop()
+
     @app.get("/health", tags=["health"])
     def health():
         return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV}

@@ -100,6 +100,57 @@ export const reportsApi = {
   },
 };
 
+export interface StagingBatch {
+  id: string;
+  un_code: string;
+  work_id: string | null;
+  status: string;
+  element_count: number;
+  message: string | null;
+  error: string | null;
+  queue_seq: number | null;
+  created_at: string;
+}
+export interface StagingElement {
+  guid: string;
+  element_type: string;
+  operation: string;
+  parent_guid: string | null;
+  geometry_geojson: string | null;
+  attributes_json: string | null;
+}
+
+export const gisApi = {
+  batches: (params?: Record<string, string>) =>
+    api.get<StagingBatch[]>("/gis/staging", { params }).then((r) => r.data),
+  batch: (id: string) =>
+    api
+      .get<StagingBatch & { elements: StagingElement[] }>(`/gis/staging/${id}`)
+      .then((r) => r.data),
+  approve: (id: string) => api.post(`/gis/staging/${id}/approve`).then((r) => r.data),
+  rollback: (id: string) => api.post(`/gis/staging/${id}/rollback`).then((r) => r.data),
+};
+
+export interface FieldChange {
+  id: string;
+  username: string;
+  work_code: string;
+  work_id: string;
+  element_guid: string;
+  element_type: string | null;
+  operation: string;
+  created_at: string;
+}
+
+export const historyApi = {
+  changes: (params?: Record<string, string>) =>
+    api.get<FieldChange[]>("/history/changes", { params }).then((r) => r.data),
+  summary: (params?: Record<string, string>) =>
+    api
+      .get<Record<string, string | number>[]>("/history/summary", { params })
+      .then((r) => r.data),
+};
+
 export const qualityApi = {
   list: () => api.get<QualityParam[]>("/quality/params").then((r) => r.data),
   upload: (payload: { description?: string; rules_json: unknown; activate?: boolean }) =>

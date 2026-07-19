@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -162,6 +164,12 @@ private fun CaptureForm(vm: WorkDetailViewModel, element: ElementRecord) {
                 onClick = { vm.saveElement(element, attributes, observations, completed = true) },
             ) { Text("Guardar y completar") }
         }
+
+        // Marcar el elemento para eliminación (se consolida como DELETE).
+        TextButton(
+            onClick = { vm.markDeleted(element) },
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+        ) { Text("Eliminar elemento") }
     }
 }
 

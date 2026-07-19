@@ -36,6 +36,9 @@ class Element(UUIDPk, Timestamps, Base):
     attributes_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     is_new: Mapped[bool] = mapped_column(Boolean, default=False)  # capturado en campo
+    # Marca de baja lógica: el elemento fue eliminado en campo (la eliminación
+    # física en la geodatabase la aplica el editor). Preserva la bitácora/FK.
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
     logs = relationship("ElementLog", back_populates="element", cascade="all, delete-orphan")
 
