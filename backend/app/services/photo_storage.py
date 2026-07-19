@@ -6,10 +6,19 @@ final. La operación es idempotente: reenviar un chunk simplemente lo sobrescrib
 """
 import hashlib
 import os
+import re
 import shutil
 from dataclasses import dataclass
 
 from app.core.config import settings
+
+# Un SHA-256 en hex: exactamente 64 caracteres [0-9a-f]. Cualquier otra cosa se
+# rechaza ANTES de tocar el sistema de archivos (previene path traversal).
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+class InvalidStorageKey(ValueError):
+    """Identificador inválido para rutas de almacenamiento (posible traversal)."""
 
 
 @dataclass
@@ -20,12 +29,30 @@ class ChunkResult:
     verified: bool
 
 
+def _require_sha(sha256: str) -> str:
+    if not SHA256_RE.fullmatch(sha256 or ""):
+        raise InvalidStorageKey("Hash SHA-256 inválido.")
+    return sha256
+
+
+def _safe_segment(value: str) -> str:
+    """Sanitiza un segmento de ruta (p. ej. work_id): solo [A-Za-z0-9._-]."""
+    cleaned = re.sub(r"[^A-Za-z0-9._-]", "_", value or "")
+    if not cleaned or cleaned in {".", ".."}:
+        raise InvalidStorageKey("Segmento de ruta inválido.")
+    return cleaned
+
+
 def _incoming_dir(sha256: str) -> str:
-    return os.path.join(settings.PHOTO_STORAGE_DIR, "incoming", sha256)
+    return os.path.join(settings.PHOTO_STORAGE_DIR, "incoming", _require_sha(sha256))
 
 
-def _final_path(work_id: str, sha256: str) -> str:
-    return os.path.join(settings.PHOTO_STORAGE_DIR, "photos", work_id, f"{sha256}.jpg")
+def final_path(work_id: str, sha256: str) -> str:
+    """Ruta final pública de una foto verificada."""
+    return os.path.join(
+        settings.PHOTO_STORAGE_DIR, "photos", _safe_segment(work_id),
+        f"{_require_sha(sha256)}.jpg",
+    )
 
 
 def save_chunk(sha256: str, index: int, total: int, data: bytes) -> ChunkResult:
@@ -53,7 +80,7 @@ def assemble_and_verify(sha256: str, total: int, work_id: str) -> ChunkResult:
         return ChunkResult(len(parts), total, complete=False, verified=False)
 
     hasher = hashlib.sha256()
-    final = _final_path(work_id, sha256)
+    final = final_path(work_id, sha256)
     os.makedirs(os.path.dirname(final), exist_ok=True)
     with open(final, "wb") as out:
         for name in parts:

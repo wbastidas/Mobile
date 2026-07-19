@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi, noveltiesApi } from "@/api/endpoints";
 import { errorMessage } from "@/api/client";
@@ -29,6 +30,15 @@ const RULE_LABEL: Record<string, string> = {
  * calidad por elemento y por regla (RF-WEB-09.2).
  */
 export default function WorkDetailDrawer({ work, onClose }: { work: Work; onClose: () => void }) {
+  // Accesibilidad: Escape cierra el panel.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const timeline = useQuery({
     queryKey: ["timeline", work.id],
     queryFn: () => dashboardApi.timeline(work.id),

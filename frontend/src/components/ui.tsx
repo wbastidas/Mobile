@@ -40,7 +40,12 @@ export function typeLabel(t: string): string {
 }
 
 export function Loading() {
-  return <div className="empty">Cargando…</div>;
+  return (
+    <div className="loading" role="status" aria-live="polite">
+      <span className="spinner" aria-hidden="true" />
+      Cargando…
+    </div>
+  );
 }
 
 export function ErrorBox({ message }: { message: string }) {

@@ -100,7 +100,7 @@ Todas verificadas con pruebas automatizadas salvo indicación:
 
 | ID | Estado |
 |---|---|
-| RNF-01 Seguridad | JWT, hashing, sesión cifrada (Keystore), TLS en producción, auditoría inmutable · ✅ base |
+| RNF-01 Seguridad | JWT, hashing, sesión cifrada (Keystore), TLS en producción, auditoría inmutable · **endurecimiento verificado**: validación estricta de SHA-256 (anti path-traversal en subida de fotos, en esquema + endpoint + capa de almacenamiento), límite de tamaño por chunk (413), índices de chunk acotados, cabeceras OWASP (nosniff, X-Frame-Options, Referrer-Policy, HSTS en prod), y la app **se niega a arrancar en producción con el SECRET_KEY por defecto** · ✅ con 6 pruebas dedicadas (`tests/test_security.py`) |
 | RNF-02 Rendimiento | índices, lazy loading, IO fuera de UI · ✅ base (falta profiling en dispositivo) |
 | RNF-03 Plataforma/despliegue | Backend Windows Server (Python), web SPA, Android 8.0+ · ✅ |
 | RNF-04 Usabilidad | UI moderna web/móvil, contraste/tamaños táctiles · ✅ base |
@@ -126,6 +126,7 @@ Todas verificadas con pruebas automatizadas salvo indicación:
 
 | Suite | Pruebas | Estado |
 |---|---|---|
-| Backend `pytest` | 23 | ✅ |
+| Backend `pytest` | 29 (incl. 6 de seguridad) | ✅ |
 | Móvil `core` JUnit | 19 | ✅ |
 | Frontend build (`tsc` + `vite`) | — | ✅ sin errores |
+| UI web (Playwright headless) | flujo login → dashboard → trabajos → detalle → reportes | ✅ verificado visualmente |

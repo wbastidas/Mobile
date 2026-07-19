@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.enums import (
@@ -205,7 +206,17 @@ async def upload_photo_chunk(
 
     Al recibir el último chunk ensambla el archivo y verifica su integridad por
     SHA-256 (RF-SYNC.4). Solo si el hash coincide la foto se marca como recibida.
+
+    Seguridad: el hash y los índices se validan antes de tocar el sistema de
+    archivos, y cada chunk respeta el tamaño máximo configurado.
     """
+    if not photo_storage.SHA256_RE.fullmatch(sha256):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "Identificador de foto inválido (se espera SHA-256 hex).")
+    if total < 1 or total > 10_000 or index < 0 or index >= total:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "Índices de chunk fuera de rango.")
+
     photos = (
         db.query(Photo)
         .filter(Photo.sha256 == sha256, Photo.user_id == user.id)
@@ -217,7 +228,10 @@ async def upload_photo_chunk(
         return {"received": total, "total": total, "complete": True, "verified": True,
                 "detail": "Foto ya recibida (idempotente)."}
 
-    data = await chunk.read()
+    data = await chunk.read(settings.UPLOAD_CHUNK_MAX_BYTES + 1)
+    if len(data) > settings.UPLOAD_CHUNK_MAX_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                            "El chunk excede el tamaño máximo permitido.")
     result = photo_storage.save_chunk(sha256, index, total, data)
 
     for p in photos:
@@ -230,11 +244,11 @@ async def upload_photo_chunk(
     work_id = photos[0].work_id or "sin_trabajo"
     assembled = photo_storage.assemble_and_verify(sha256, total, work_id)
     if assembled.verified:
-        final_path = photo_storage._final_path(work_id, sha256)
+        stored_at = photo_storage.final_path(work_id, sha256)
         for p in photos:
             p.fully_received = True
             p.received_chunks = total
-            p.storage_path = final_path
+            p.storage_path = stored_at
     db.commit()
     return {"received": assembled.received, "total": total,
             "complete": assembled.complete, "verified": assembled.verified,

@@ -1,20 +1,24 @@
 """Esquemas de sincronización (RF-SYNC, RF-MOV-09/10)."""
 from typing import Any, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.enums import ValidationResult
 
 
 class PhotoMeta(BaseModel):
-    """Metadata obligatoria de foto (RN-08)."""
+    """Metadata obligatoria de foto (RN-08).
+
+    El hash se valida con formato estricto: es la clave con la que luego se
+    escriben rutas en disco (ver services/photo_storage).
+    """
     element_guid: Optional[str] = None
-    gps_lat: float
-    gps_lon: float
+    gps_lat: float = Field(ge=-90, le=90)
+    gps_lon: float = Field(ge=-180, le=180)
     captured_at: str
-    sha256: str
-    size_bytes: int = 0
-    total_chunks: int = 1
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    size_bytes: int = Field(default=0, ge=0)
+    total_chunks: int = Field(default=1, ge=1, le=10_000)
 
 
 class SyncUploadRequest(BaseModel):

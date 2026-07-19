@@ -216,6 +216,7 @@ def test_sync_pending_when_photo_missing(client, seeded):
                 json={"device_id": device, "work_ids": [work["id"]]})
     field = login(client, "campo.norte")
 
+    pending_sha = hashlib.sha256(b"foto-pendiente").hexdigest()
     payload = {
         "idempotency_key": "pkg-photo",
         "work_id": work["id"],
@@ -223,11 +224,11 @@ def test_sync_pending_when_photo_missing(client, seeded):
         "payload_json": json.dumps({"elements": []}),
         "validation_result": "APPROVED",
         "photos": [{"element_guid": "UN-NORTE-POSTE-0001", "gps_lat": -0.2, "gps_lon": -78.5,
-                    "captured_at": "2026-07-17T10:00:00Z", "sha256": "abc123",
+                    "captured_at": "2026-07-17T10:00:00Z", "sha256": pending_sha,
                     "size_bytes": 2048, "total_chunks": 3}],
     }
     r = client.post("/api/v1/sync/upload", headers=field, json=payload)
-    assert "abc123" in r.json()["missing_photos"]
+    assert pending_sha in r.json()["missing_photos"]
 
     pkg_id = r.json()["package_id"]
     r = client.post(f"/api/v1/sync/verify/{pkg_id}", headers=field)
