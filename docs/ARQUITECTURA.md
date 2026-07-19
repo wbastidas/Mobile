@@ -1,12 +1,13 @@
 # Arquitectura — Sistema de Levantamiento Eléctrico en Campo
 
-> Documento de diseño de la **primera iteración**: Backend API + Modelo de datos.
+> Diseño de la solución completa (backend, web y móvil).
 > Referencia: `REQUERIMIENTOS_Sistema_Levantamiento_Electrico.md`.
+> Estado de implementación y trazabilidad detallada: [`ESTADO.md`](ESTADO.md).
 
 ## 1. Visión general
 
-La solución se compone de tres piezas; esta iteración entrega la **base
-compartida (Backend API)** de la que dependen las otras dos:
+La solución se compone de tres piezas que comparten contratos; las tres están
+implementadas a nivel de base funcional:
 
 ```
         ┌────────────────────┐        ┌────────────────────┐
@@ -16,7 +17,7 @@ compartida (Backend API)** de la que dependen las otras dos:
                   │ HTTPS/JWT                    │ HTTPS/JWT (sync)
                   └──────────────┬───────────────┘
                         ┌────────▼─────────┐
-                        │   BACKEND API    │  ← esta iteración
+                        │   BACKEND API    │
                         │  FastAPI/Python  │
                         └───┬─────────┬────┘
               ┌─────────────┘         └──────────────┐

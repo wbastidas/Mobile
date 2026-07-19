@@ -50,9 +50,11 @@ Dispositivo de demo: `ANDROID-DEMO-001` (vinculado a `campo.norte`, UN-NORTE).
 python -m pytest -q
 ```
 
-Cubren: login y bloqueo por intentos, segregación Matriz/UN, exclusividad de
-asignación (RN-01/02), borrado remoto + reasignación, flujo completo de
-sincronización, idempotencia y estado pendiente por foto faltante (RN-04).
+23 pruebas que cubren: login y bloqueo por intentos, segregación Matriz/UN,
+exclusividad de asignación (RN-01/02), borrado remoto + reasignación, flujo
+completo de sincronización, idempotencia, subida de fotos por chunks con
+verificación de integridad, novedades de calidad por regla y reportería con
+exportación (Excel/PDF/CSV).
 
 ## Estructura
 
@@ -77,17 +79,17 @@ backend/app
 | `users` | CRUD usuarios, contraseña | RF-WEB-02.1 |
 | `devices` | registro/gestión dispositivos | RF-WEB-02.3 |
 | `works` | crear/listar, asignar, borrado remoto | RF-WEB-03/04/05 |
-| `sync` | pull, upload, verify, confirm-delete | RF-SYNC, RF-MOV-09/10 |
-| `quality` | parámetros de calidad + esquema | RF-WEB-10, §6.4 |
+| `sync` | pull, upload, **photo/{sha}/chunk**, verify, confirm-delete | RF-SYNC, RF-MOV-09/10 |
+| `quality` | parámetros, esquema, **novedades por regla** | RF-WEB-10, RF-WEB-09.2, §6.4 |
 | `elements` | elemento + bitácora por GUID | RF-WEB-07 |
 | `audit` | consulta de auditoría | RF-WEB-08 |
 | `dashboard` | resumen, mapa, línea de tiempo | RF-WEB-06 |
+| `reports` | reportes + exportación Excel/PDF/CSV | RF-WEB-11 |
 
-Ver `docs/ARQUITECTURA.md` para el diseño detallado y la trazabilidad completa.
+Ver `docs/ARQUITECTURA.md` (diseño) y `docs/ESTADO.md` (trazabilidad completa).
 
 ## Próximas iteraciones
 
-1. Frontend **React + TypeScript** (SPA de administración).
-2. App **Android nativa (Kotlin)** con GPKG offline.
-3. Migraciones **Alembic** + PostGIS; subida de fotos por chunks (binarios).
-4. Implementación real del adaptador GIS (ArcPy / servicios REST / staging Oracle).
+1. Migraciones **Alembic** + PostGIS (hoy SQLite en dev; código agnóstico a la BD).
+2. Implementación real del adaptador GIS (ArcPy / servicios REST / staging Oracle).
+3. Autenticación corporativa (AD/LDAP/SSO) según infraestructura (PD-05).
